@@ -65,10 +65,40 @@ function manterSomenteValorMonetario() {
   valorInput.value = `${partes[0]},${partes.slice(1).join("").slice(0, 2)}`;
 }
 
+/**
+ * Verifica se a sessão expirou (status 401) e, nesse caso, manda o usuário
+ * para a tela de login. Sem isso, o código tentaria ler dados que não vieram
+ * e a tela quebraria em silêncio.
+ *
+ * @param {Response} resposta - Resposta de um fetch().
+ * @returns {boolean} true se redirecionou (quem chamou deve parar).
+ */
+function redirecionarSeNaoAutenticado(resposta) {
+  if (resposta.status === 401) {
+    window.location.href = "/login.html";
+    return true;
+  }
+  return false;
+}
+
 async function buscarPagamentos() {
   const mes = filtroMesInput.value;
-  const url = mes ? `/api/pagamentos?mes=${mes}` : "/api/pagamentos";
-  const resposta = await fetch(url);
+  // encodeURIComponent protege a URL caso o valor tenha caracteres especiais.
+  const url = mes ? `/api/pagamentos?mes=${encodeURIComponent(mes)}` : "/api/pagamentos";
+
+  let resposta;
+  try {
+    resposta = await fetch(url);
+  } catch (erro) {
+    // fetch só lança exceção em falha de REDE (servidor fora do ar, sem internet).
+    mostrarErros(["Nao foi possivel conectar ao servidor."]);
+    return;
+  }
+
+  if (redirecionarSeNaoAutenticado(resposta)) {
+    return;
+  }
+
   const dados = await resposta.json();
 
   renderizarTabela(dados.pagamentos);
@@ -92,11 +122,17 @@ function renderizarTabela(pagamentos) {
   pagamentos.forEach((pagamento) => {
     const tr = document.createElement("tr");
 
+    /**
+     * SEGURANÇA (XSS): o HTML abaixo é FIXO, e nenhum dado do banco entra nele.
+     * Os dados são inseridos depois com textContent, que trata o conteúdo como
+     * texto puro. Antes, o nome do jogador ia direto no innerHTML: um nome como
+     * <img src=x onerror=alert(1)> executaria JavaScript na tela de quem abrisse.
+     */
     tr.innerHTML = `
-      <td>${pagamento.jogador}</td>
-      <td>${formatarData(pagamento.data_pagamento)}</td>
-      <td>${moeda.format(pagamento.valor)}</td>
-      <td><span class="status ${pagamento.status.toLowerCase()}">${pagamento.status}</span></td>
+      <td data-campo="jogador"></td>
+      <td data-campo="data"></td>
+      <td data-campo="valor"></td>
+      <td><span data-campo="status"></span></td>
       <td>
         <div class="row-actions">
           <button class="small" data-action="editar">Editar</button>
@@ -104,6 +140,14 @@ function renderizarTabela(pagamentos) {
         </div>
       </td>
     `;
+
+    tr.querySelector('[data-campo="jogador"]').textContent = pagamento.jogador;
+    tr.querySelector('[data-campo="data"]').textContent = formatarData(pagamento.data_pagamento);
+    tr.querySelector('[data-campo="valor"]').textContent = moeda.format(pagamento.valor);
+
+    const statusSpan = tr.querySelector('[data-campo="status"]');
+    statusSpan.className = `status ${pagamento.status.toLowerCase()}`;
+    statusSpan.textContent = pagamento.status;
 
     tr.querySelector('[data-action="editar"]').addEventListener("click", () => {
       pagamentoIdInput.value = pagamento.id;
@@ -123,9 +167,20 @@ function renderizarTabela(pagamentos) {
         return;
       }
 
-      await fetch(`/api/pagamentos/${pagamento.id}`, {
+      const resposta = await fetch(`/api/pagamentos/${pagamento.id}`, {
         method: "DELETE"
       });
+
+      if (redirecionarSeNaoAutenticado(resposta)) {
+        return;
+      }
+
+      // 204 = excluído. Qualquer outro status de erro mostra a mensagem da API.
+      if (!resposta.ok) {
+        const erro = await resposta.json();
+        mostrarErros(erro.erros || ["Nao foi possivel excluir o pagamento."]);
+        return;
+      }
 
       await buscarPagamentos();
       limparFormulario();
@@ -144,13 +199,23 @@ form.addEventListener("submit", async (event) => {
   const url = id ? `/api/pagamentos/${id}` : "/api/pagamentos";
   const metodo = id ? "PUT" : "POST";
 
-  const resposta = await fetch(url, {
-    method: metodo,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dados)
-  });
+  let resposta;
+  try {
+    resposta = await fetch(url, {
+      method: metodo,
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(dados)
+    });
+  } catch (erro) {
+    mostrarErros(["Nao foi possivel conectar ao servidor."]);
+    return;
+  }
+
+  if (redirecionarSeNaoAutenticado(resposta)) {
+    return;
+  }
 
   if (!resposta.ok) {
     const erro = await resposta.json();

@@ -181,6 +181,20 @@ button.small {
   font-size: 0.85rem;
 }
 
+/* Link "Sair" do cabeçalho (provisório até o novo layout da Etapa 5) */
+.logout-link {
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: #e8efe9;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.logout-link:hover {
+  background: var(--border);
+}
+
 .list-panel {
   min-width: 0;
 }
