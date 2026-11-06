@@ -26,7 +26,7 @@ const RECURSOS_PUBLICOS = ["/login.js", "/styles.css", "/favicon.ico"];
 function responderNaoAutenticado(req, res) {
   // originalUrl mantém o caminho completo mesmo dentro de um Router.
   if (req.originalUrl.startsWith("/api/")) {
-    return res.status(401).json({ erros: ["Nao autorizado. Faça login para continuar."] });
+    return res.status(401).json({ erros: ["Não autorizado. Faça login para continuar."] });
   }
   return res.redirect("/login.html");
 }

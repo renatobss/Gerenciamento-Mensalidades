@@ -59,11 +59,11 @@ function buscarPorId(id) {
 function obterExistente(idTexto) {
   const id = converterId(idTexto);
   if (!id) {
-    throw new AppError("ID invalido.", 400);
+    throw new AppError("ID inválido.", 400);
   }
   const pagamento = buscarPorId(id);
   if (!pagamento) {
-    throw new AppError("Pagamento nao encontrado.", 404);
+    throw new AppError("Pagamento não encontrado.", 404);
   }
   return pagamento;
 }

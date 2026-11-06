@@ -105,6 +105,12 @@ describe("Painel", () => {
     });
   });
 
+  it("avisa quando o período do gráfico não tem pagamentos", () => {
+    cy.visit("/");
+    cy.dataTest("filtro-mes-dashboard").clear().type("2001-01").blur(); // mês sem dados
+    cy.dataTest("mensagem-grafico-vazio").should("be.visible");
+  });
+
   it("exibe gráfico de 6 meses com tabela de apoio", () => {
     cy.visit("/");
     cy.dataTest("coluna-grafico").should("have.length", 6);

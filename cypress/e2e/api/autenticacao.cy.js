@@ -29,7 +29,7 @@ describe("API - Autenticação", () => {
       failOnStatusCode: false
     }).then((resposta) => {
       expect(resposta.status).to.eq(401);
-      expect(resposta.body.erros[0]).to.eq("Usuario ou senha invalidos.");
+      expect(resposta.body.erros[0]).to.eq("Usuário ou senha inválidos.");
     });
   });
 

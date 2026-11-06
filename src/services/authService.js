@@ -54,7 +54,7 @@ function obterHashFalso() {
 async function autenticar(usuario, senha, ip) {
   // typeof garante que chegou texto (e não número, objeto, array...).
   if (typeof usuario !== "string" || typeof senha !== "string" || !usuario.trim() || !senha) {
-    throw new AppError("Usuario e senha sao obrigatorios.", 400);
+    throw new AppError("Usuário e senha são obrigatórios.", 400);
   }
 
   if (usuario.length > TAMANHO_MAXIMO_USUARIO || senha.length > TAMANHO_MAXIMO_SENHA) {
@@ -84,7 +84,7 @@ async function autenticar(usuario, senha, ip) {
 
   if (!registro || !senhaConfere) {
     limitador.registrarFalha(chave);
-    throw new AppError("Usuario ou senha invalidos.", 401);
+    throw new AppError("Usuário ou senha inválidos.", 401);
   }
 
   limitador.limpar(chave);

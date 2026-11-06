@@ -17,7 +17,7 @@ const AppError = require("../utils/AppError");
  * (Sem isso, o Express devolveria uma página HTML "Cannot GET ...".)
  */
 function rotaApiNaoEncontrada(req, res) {
-  res.status(404).json({ erros: ["Rota nao encontrada."] });
+  res.status(404).json({ erros: ["Rota não encontrada."] });
 }
 
 /**
@@ -38,7 +38,7 @@ function tratadorErros(erro, req, res, next) {
 
   // O express.json() lança este erro quando o corpo não é um JSON válido.
   if (erro.type === "entity.parse.failed") {
-    return res.status(400).json({ erros: ["JSON invalido no corpo da requisicao."] });
+    return res.status(400).json({ erros: ["JSON inválido no corpo da requisição."] });
   }
 
   // Erro inesperado: registramos o detalhe no console do servidor, mas o

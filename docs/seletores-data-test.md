@@ -74,6 +74,7 @@ cy.get('[data-test="linha-usuario"][data-id="5"]')
 | `percentual-arrecadado` | Percentual do previsto |
 | `card-jogadores-ativos`, `card-pendente-mes`, `card-sem-lancamento`, `card-pendente-geral` | Indicadores |
 | `grafico-evolucao` | Gráfico de 6 meses |
+| `mensagem-grafico-vazio` | Aviso quando os 6 meses não têm pagamentos |
 | `coluna-grafico` | Cada coluna (atributo `data-mes` = AAAA-MM) |
 | `btn-ver-tabela-evolucao`, `tabela-evolucao` | Tabela de apoio do gráfico |
 | `lista-sem-lancamento`, `item-sem-lancamento`, `btn-registrar-pagamento` | Jogadores sem lançamento no mês |

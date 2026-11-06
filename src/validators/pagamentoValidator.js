@@ -45,7 +45,7 @@ function validarPagamento(dados = {}) {
   }
 
   if (!ehDataValida(dataPagamento)) {
-    erros.push("Informe uma data de pagamento valida.");
+    erros.push("Informe uma data de pagamento válida.");
   }
 
   if (!Number.isFinite(valor) || valor <= 0) {
@@ -53,7 +53,7 @@ function validarPagamento(dados = {}) {
   }
 
   if (!STATUS_VALIDOS.includes(status)) {
-    erros.push("Escolha um status valido.");
+    erros.push("Escolha um status válido.");
   }
 
   return {

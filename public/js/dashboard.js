@@ -112,6 +112,8 @@ function mostrarDica(item, ponto) {
 function renderizarGrafico(evolucao, mesSelecionado) {
   const maximo = Math.max(...evolucao.map((ponto) => ponto.totalPago), 0);
   grafico.replaceChildren();
+  // Sem nenhum valor no período, um gráfico em branco confunde: explicamos o motivo.
+  document.getElementById("graficoVazio").hidden = maximo > 0;
 
   for (const ponto of evolucao) {
     const item = document.createElement("div");
