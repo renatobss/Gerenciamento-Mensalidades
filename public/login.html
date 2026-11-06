@@ -1,34 +1,117 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Gerenciamento de Mensalidades</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Gerenciamento de Mensalidades</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body class="login-page">
 
-    <div class="panel form-panel login-box">
-        <!-- <p class="eyebrow">Área Restrita</p> -->
-        <h2>Acesso ao Sitema</h2>
-    
-        <form id="login-Form">
-            <div>
-                <label for="usuario">Usuário:</label>
-                <input type="text" id="usuarioInput" name="usuario" required data-test ="user" placeholder="Digite seu usuário">
-            </div>
+  <main class="login-container">
+    <!--
+      Painel da marca (lado esquerdo no desktop, faixa superior no celular).
+      É decorativo, por isso não leva data-test.
+    -->
+    <section class="login-marca">
+      <div class="login-marca-conteudo">
+        <svg class="login-bola" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="30" fill="#ffffff" />
+          <polygon points="32,20 43,28 39,41 25,41 21,28" fill="#1d573b" />
+          <g stroke="#1d573b" stroke-width="2.5" stroke-linecap="round">
+            <line x1="32" y1="20" x2="32" y2="3" />
+            <line x1="43" y1="28" x2="59" y2="22" />
+            <line x1="39" y1="41" x2="49" y2="56" />
+            <line x1="25" y1="41" x2="15" y2="56" />
+            <line x1="21" y1="28" x2="5" y2="22" />
+          </g>
+        </svg>
+        <h1>Mensalidades FC</h1>
+        <p>Controle de mensalidades do seu grupo de futebol, simples e organizado.</p>
+      </div>
+    </section>
 
-            <div>
-                <label for="senha">Senha:</label>
-                <input type="password" id="senhaInput" name="senha" required data-test="senha" placeholder="Digite sua senha">
-            </div>    
-                
-            <div id="mensagemErroLogin" data-test="error-message" style="display: none;"></div>
-                
-            <button type="submit" data-test="login-button" style="width: 100%;">Entrar no Sistema</button>
-        </form>
-    </div>
+    <!-- Cartão com o formulário de login -->
+    <section class="login-cartao" aria-labelledby="tituloLogin">
+      <p class="eyebrow">Área restrita</p>
+      <h2 id="tituloLogin">Acesse sua conta</h2>
+      <p class="login-subtitulo">Informe suas credenciais para continuar.</p>
 
-    <script src="login.js"></script>
+      <!-- Mensagens gerais. O atributo "hidden" as esconde até o JavaScript precisar. -->
+      <div id="mensagemInfoLogin" class="alerta alerta-info" role="status" data-test="mensagem-info-login" hidden></div>
+      <div id="mensagemErroLogin" class="alerta alerta-erro" role="alert" data-test="mensagem-erro-login" hidden></div>
+
+      <!--
+        novalidate desliga os balões de validação nativos do navegador.
+        Fazemos a validação em JavaScript para ter mensagens padronizadas
+        (e fáceis de verificar no Cypress). O "required" continua lá para
+        tecnologias assistivas, como leitores de tela.
+      -->
+      <form id="formLogin" novalidate>
+        <div class="campo">
+          <label for="usuario">Usuário</label>
+          <input
+            type="text"
+            id="usuario"
+            name="usuario"
+            autocomplete="username"
+            maxlength="100"
+            placeholder="Digite seu usuário"
+            required
+            aria-describedby="erroUsuario"
+            data-test="usuario"
+          >
+          <p id="erroUsuario" class="campo-erro" data-test="mensagem-erro-usuario" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="senha">Senha</label>
+          <div class="campo-senha">
+            <input
+              type="password"
+              id="senha"
+              name="senha"
+              autocomplete="current-password"
+              maxlength="128"
+              placeholder="Digite sua senha"
+              required
+              aria-describedby="erroSenha"
+              data-test="senha"
+            >
+            <!-- type="button" impede que este botão envie o formulário -->
+            <button
+              type="button"
+              id="btnVisualizarSenha"
+              class="btn-icone"
+              aria-label="Mostrar senha"
+              aria-pressed="false"
+              data-test="btn-visualizar-senha"
+            >
+              <!-- Ícone "olho aberto" (mostrar) -->
+              <svg data-icone="mostrar" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <!-- Ícone "olho riscado" (ocultar) -->
+              <svg data-icone="ocultar" viewBox="0 0 24 24" aria-hidden="true" hidden>
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            </button>
+          </div>
+          <p id="erroSenha" class="campo-erro" data-test="mensagem-erro-senha" hidden></p>
+        </div>
+
+        <button type="submit" id="btnLogin" class="btn-login" data-test="btn-login">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="btn-texto">Entrar</span>
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <script src="login.js"></script>
 </body>
 </html>

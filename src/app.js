@@ -21,6 +21,7 @@ const express = require("express");
 const path = require("path");
 const session = require("express-session");
 
+const { segredoSessao, sessaoDuracaoHoras } = require("./config/ambiente");
 const authRoutes = require("./routes/authRoutes");
 const pagamentoRoutes = require("./routes/pagamentoRoutes");
 const { protegerRecursos } = require("./middlewares/autenticacao");
@@ -29,15 +30,17 @@ const { rotaApiNaoEncontrada, tratadorErros } = require("./middlewares/tratadorE
 const app = express();
 const PASTA_PUBLICA = path.join(__dirname, "..", "public");
 
-// 1. Sessão. (Etapa 2: o segredo sairá do código e irá para o arquivo .env.)
+// 1. Sessão. O segredo vem do arquivo .env (src/config/ambiente.js).
 app.use(session({
-  secret: "minha_chave_secreta_gerenciamento_mensalidades_951",
+  secret: segredoSessao,
   resave: false,             // não regrava a sessão se nada mudou
   saveUninitialized: false,  // não cria sessão para quem ainda não logou
+  rolling: true,             // cada requisição renova o prazo: expira só após X horas SEM uso
   cookie: {
     httpOnly: true,          // o JavaScript do navegador não consegue ler o cookie (protege contra XSS)
     sameSite: "lax",         // o cookie não é enviado em requisições vindas de outros sites (protege contra CSRF)
-    secure: false            // true exigiria HTTPS; em desenvolvimento usamos HTTP
+    secure: false,           // true exigiria HTTPS; em desenvolvimento usamos HTTP
+    maxAge: sessaoDuracaoHoras * 60 * 60 * 1000 // em milissegundos
   }
 }));
 

@@ -2,16 +2,31 @@
  * PONTO DE ENTRADA DO SERVIDOR
  * ----------------------------
  * Executado por "npm start" ou "npm run dev".
- * Responsabilidade única: pegar o app configurado (src/app.js) e colocá-lo
- * para "escutar" requisições em uma porta.
+ * Responsabilidades:
+ *   1. Ler as configurações (.env), sempre PRIMEIRO, antes de qualquer outro módulo.
+ *   2. Preparar os dados (migrar senhas, criar o admin inicial).
+ *   3. Só então colocar o app para "escutar" requisições na porta.
  *
- * process.env.PORT permite trocar a porta sem mudar o código.
- * Exemplo (PowerShell): $env:PORT=4000; npm start
+ * A porta vem do .env (PORT) ou usa 3001.
  */
+const { porta } = require("./config/ambiente");
 const app = require("./app");
+const { inicializarDados } = require("./config/inicializarDados");
 
-const PORT = process.env.PORT || 3001;
+/**
+ * Função principal. É "async" para podermos usar "await" na inicialização:
+ * o servidor só abre a porta depois que os dados estão prontos.
+ */
+async function iniciar() {
+  await inicializarDados();
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+  app.listen(porta, () => {
+    console.log(`Servidor rodando em http://localhost:${porta}`);
+  });
+}
+
+iniciar().catch((erro) => {
+  // Se a inicialização falhar, não faz sentido subir o servidor pela metade.
+  console.error("[ERRO FATAL] Falha ao iniciar o servidor:", erro);
+  process.exit(1);
 });

@@ -12,6 +12,7 @@
  * uma única vez e o resultado fica em cache. Assim, todo arquivo que fizer
  * require("../config/database") recebe a MESMA conexão (padrão Singleton).
  */
+require("./ambiente"); // garante que o .env já foi lido (DB_PATH pode estar lá)
 const path = require("path");
 const fs = require("fs");
 const { DatabaseSync } = require("node:sqlite");
@@ -57,10 +58,8 @@ db.exec(`
   )
 `);
 
-// Usuário padrão para o primeiro acesso.
-// ATENÇÃO: a senha ainda está em texto puro. Isso será corrigido na Etapa 2
-// (hash com crypto.scrypt). "INSERT OR IGNORE" não duplica o usuário porque
-// a coluna "nome" é UNIQUE.
-db.prepare("INSERT OR IGNORE INTO usuarios (nome, senha) VALUES (?, ?)").run("admin", "admin123");
+// A coluna "senha" guarda o HASH da senha, nunca o texto digitado.
+// O usuário inicial e a migração de senhas antigas ficam em
+// src/config/inicializarDados.js (precisam de código assíncrono).
 
 module.exports = db;

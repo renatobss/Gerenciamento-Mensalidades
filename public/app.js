@@ -75,7 +75,8 @@ function manterSomenteValorMonetario() {
  */
 function redirecionarSeNaoAutenticado(resposta) {
   if (resposta.status === 401) {
-    window.location.href = "/login.html";
+    // O parâmetro faz a tela de login exibir o aviso "Sua sessão expirou".
+    window.location.href = "/login.html?sessao=expirada";
     return true;
   }
   return false;
