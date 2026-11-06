@@ -8,39 +8,43 @@
  * pode chamar a API diretamente (Postman, curl, Cypress cy.request...) e pular
  * o frontend. A validação do backend é a que realmente protege os dados; a do
  * frontend serve só para dar um retorno mais rápido ao usuário.
+ *
+ * Desde a Etapa 4, o pagamento aponta para um jogador cadastrado (jogador_id).
+ * A existência e a situação do jogador são conferidas no pagamentoService,
+ * porque exigem consulta ao banco.
  */
+const { converterId } = require("../utils/consultas");
+const { ehDataValida, converterValorMonetario } = require("../utils/validacoes");
 
-// Lista única de status aceitos. Centralizar evita digitar "Pago" em vários lugares.
+// Status que podem ser ESCOLHIDOS no formulário. "Cancelado" existe, mas só é
+// aplicado pela ação de cancelar (PATCH /api/pagamentos/:id/cancelar).
 const STATUS_VALIDOS = ["Pago", "Pendente"];
+const STATUS_CANCELADO = "Cancelado";
 
 /**
  * Valida e normaliza os dados de um pagamento.
  *
  * @param {object} dados - Corpo da requisição (req.body).
- * @param {string} dados.jogador - Nome do jogador.
+ * @param {number|string} dados.jogador_id - Id do jogador cadastrado.
  * @param {string} dados.data_pagamento - Data no formato AAAA-MM-DD.
- * @param {string|number} dados.valor - Valor; aceita vírgula ou ponto decimal.
+ * @param {string|number} dados.valor - Valor; aceita "80", "80,50" ou "1.234,56".
  * @param {string} [dados.status="Pago"] - "Pago" ou "Pendente".
  * @returns {{ erros: string[], pagamento: object }}
- *   "erros" vazio significa dados válidos; "pagamento" traz os dados já
- *   convertidos (texto sem espaços extras, valor como número).
+ *   "erros" vazio significa dados válidos; "pagamento" traz os dados convertidos.
  */
 function validarPagamento(dados = {}) {
   const erros = [];
 
-  // String(x || "") protege contra undefined/null; trim() remove espaços das pontas.
-  const jogador = String(dados.jogador || "").trim();
+  const jogadorId = converterId(dados.jogador_id);
   const dataPagamento = String(dados.data_pagamento || "").trim();
-  const valor = Number(String(dados.valor || "").replace(",", "."));
+  const valor = converterValorMonetario(dados.valor);
   const status = String(dados.status || "Pago").trim();
 
-  if (!jogador) {
-    erros.push("Informe o nome do jogador.");
+  if (!jogadorId) {
+    erros.push("Selecione o jogador.");
   }
 
-  // Monta a data com horário fixo para o JavaScript interpretar no fuso local.
-  // Se a data for inválida, getTime() devolve NaN.
-  if (!dataPagamento || Number.isNaN(new Date(`${dataPagamento}T00:00:00`).getTime())) {
+  if (!ehDataValida(dataPagamento)) {
     erros.push("Informe uma data de pagamento valida.");
   }
 
@@ -55,16 +59,14 @@ function validarPagamento(dados = {}) {
   return {
     erros,
     pagamento: {
-      jogador,
+      jogadorId,
       data_pagamento: dataPagamento,
-      valor,
+      valor: Math.round(valor * 100) / 100,
       status
     }
   };
 }
 
-// converterId agora mora em src/utils/consultas.js (é usado por vários módulos).
+// converterId mora em src/utils/consultas.js (é usado por vários módulos).
 // Continua exportado aqui para não quebrar quem já importava deste arquivo.
-const { converterId } = require("../utils/consultas");
-
-module.exports = { validarPagamento, converterId, STATUS_VALIDOS };
+module.exports = { validarPagamento, converterId, STATUS_VALIDOS, STATUS_CANCELADO };

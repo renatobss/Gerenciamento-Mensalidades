@@ -26,6 +26,7 @@ const { segredoSessao, sessaoDuracaoHoras } = require("./config/ambiente");
 const authRoutes = require("./routes/authRoutes");
 const pagamentoRoutes = require("./routes/pagamentoRoutes");
 const usuarioRoutes = require("./routes/usuarioRoutes");
+const jogadorRoutes = require("./routes/jogadorRoutes");
 const usuarioService = require("./services/usuarioService");
 const { PERFIS } = require("./config/perfis");
 const { protegerRecursos } = require("./middlewares/autenticacao");
@@ -69,6 +70,7 @@ app.use(protegerRecursos);
 // 5. API protegida.
 app.use("/api/pagamentos", pagamentoRoutes);
 app.use("/api/usuarios", usuarioRoutes);
+app.use("/api/jogadores", jogadorRoutes);
 
 // 6. Páginas restritas por perfil (verificadas ANTES de servir o arquivo).
 //    A API de usuários já é protegida; isto evita que um usuário comum veja

@@ -46,7 +46,10 @@
         <input type="hidden" id="pagamentoId">
 
         <label for="jogador">Jogador</label>
-        <input type="text" id="jogador" placeholder="Nome completo" required>
+        <!-- Lista preenchida por app.js com os jogadores ATIVOS (GET /api/jogadores/opcoes) -->
+        <select id="jogador" required>
+          <option value="">Selecione o jogador...</option>
+        </select>
 
         <label for="dataPagamento">Data do pagamento</label>
         <input type="date" id="dataPagamento" required>

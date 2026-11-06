@@ -38,6 +38,12 @@ fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 // Para uma aplicação pequena isso simplifica muito o código (sem async/await).
 const db = new DatabaseSync(databasePath);
 
+// Por padrão, o SQLite NÃO verifica chaves estrangeiras (REFERENCES).
+// Este comando liga a verificação: o banco passa a recusar, por exemplo, um
+// pagamento apontando para um jogador inexistente ou a exclusão de um jogador
+// que tem pagamentos.
+db.exec("PRAGMA foreign_keys = ON");
+
 // "CREATE TABLE IF NOT EXISTS" só cria a tabela na primeira execução.
 // Nas próximas, o comando é ignorado e os dados existentes são preservados.
 db.exec(`

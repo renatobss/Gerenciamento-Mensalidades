@@ -31,6 +31,71 @@ function obterDataHojeLocal() {
   return hojeNoFusoLocal.toISOString().slice(0, 10);
 }
 
+/**
+ * Jogadores ativos carregados da API (para o select e para sugerir o valor).
+ * @type {{ id: number, nomeCompleto: string, valorMensalidade: number }[]}
+ */
+let opcoesJogadores = [];
+
+/**
+ * Preenche o select de jogadores com os jogadores ATIVOS.
+ * Cada <option> é criada com textContent (seguro contra XSS).
+ */
+async function carregarOpcoesJogadores() {
+  let resposta;
+  try {
+    resposta = await fetch("/api/jogadores/opcoes");
+  } catch (erro) {
+    mostrarErros(["Nao foi possivel carregar os jogadores."]);
+    return;
+  }
+
+  if (redirecionarSeNaoAutenticado(resposta)) {
+    return;
+  }
+
+  opcoesJogadores = await resposta.json();
+
+  // Mantém só a primeira opção ("Selecione...") e recria as demais.
+  jogadorInput.length = 1;
+  opcoesJogadores.forEach((jogador) => {
+    const opcao = document.createElement("option");
+    opcao.value = String(jogador.id);
+    opcao.textContent = jogador.nomeCompleto;
+    jogadorInput.appendChild(opcao);
+  });
+}
+
+/**
+ * Seleciona o jogador de um pagamento em edição. Se o jogador foi inativado
+ * depois, ele não está na lista; então criamos uma opção temporária para ele.
+ * @param {object} pagamento
+ */
+function selecionarJogadorDoPagamento(pagamento) {
+  const id = String(pagamento.jogador_id || "");
+  if (id && !jogadorInput.querySelector(`option[value="${id}"]`)) {
+    const opcao = document.createElement("option");
+    opcao.value = id;
+    opcao.textContent = `${pagamento.jogador} (inativo)`;
+    opcao.dataset.temporaria = "true";
+    jogadorInput.appendChild(opcao);
+  }
+  jogadorInput.value = id;
+}
+
+/**
+ * Ao escolher um jogador em um NOVO pagamento, sugere o valor da mensalidade dele.
+ */
+function sugerirValorDaMensalidade() {
+  if (pagamentoIdInput.value) {
+    return; // na edição, não sobrescreve o valor já lançado
+  }
+  const jogador = opcoesJogadores.find((item) => String(item.id) === jogadorInput.value);
+  if (jogador) {
+    valorInput.value = jogador.valorMensalidade.toFixed(2).replace(".", ",");
+  }
+}
+
 function limparFormulario() {
   form.reset();
   pagamentoIdInput.value = "";
@@ -38,6 +103,8 @@ function limparFormulario() {
   salvarButton.textContent = "Salvar";
   cancelarButton.hidden = true;
   dataPagamentoInput.value = obterDataHojeLocal();
+  // Remove opções temporárias de jogadores inativos criadas na edição.
+  jogadorInput.querySelectorAll('option[data-temporaria="true"]').forEach((opcao) => opcao.remove());
 }
 
 function mostrarErros(erros) {
@@ -46,9 +113,9 @@ function mostrarErros(erros) {
 
 function lerDadosDoFormulario() {
   return {
-    jogador: jogadorInput.value,
+    jogador_id: jogadorInput.value, // desde a Etapa 4, o pagamento aponta para um jogador cadastrado
     data_pagamento: dataPagamentoInput.value,
-    valor: valorInput.value.replace(",", "."),
+    valor: valorInput.value,        // o backend aceita "80,50"
     status: statusInput.value
   };
 }
@@ -137,7 +204,7 @@ function renderizarTabela(pagamentos) {
       <td>
         <div class="row-actions">
           <button class="small" data-action="editar">Editar</button>
-          <button class="small danger" data-action="excluir">Excluir</button>
+          <button class="small danger" data-action="cancelar">Cancelar</button>
         </div>
       </td>
     `;
@@ -150,36 +217,49 @@ function renderizarTabela(pagamentos) {
     statusSpan.className = `status ${pagamento.status.toLowerCase()}`;
     statusSpan.textContent = pagamento.status;
 
+    // Pagamento cancelado fica só como histórico: sem botões de ação.
+    if (pagamento.status === "Cancelado") {
+      tr.classList.add("linha-cancelada");
+      tr.querySelector(".row-actions").remove();
+      tabela.appendChild(tr);
+      return; // dentro do forEach, "return" pula para o próximo pagamento
+    }
+
     tr.querySelector('[data-action="editar"]').addEventListener("click", () => {
       pagamentoIdInput.value = pagamento.id;
-      jogadorInput.value = pagamento.jogador;
+      selecionarJogadorDoPagamento(pagamento);
       dataPagamentoInput.value = pagamento.data_pagamento;
-      valorInput.value = pagamento.valor;
+      valorInput.value = pagamento.valor.toFixed(2).replace(".", ",");
       statusInput.value = pagamento.status;
       salvarButton.textContent = "Atualizar";
       cancelarButton.hidden = false;
       jogadorInput.focus();
     });
 
-    tr.querySelector('[data-action="excluir"]').addEventListener("click", async () => {
-      const confirmou = confirm(`Excluir o pagamento de ${pagamento.jogador}?`);
+    /**
+     * CANCELAMENTO LÓGICO: o pagamento não é apagado. Ele recebe o status
+     * "Cancelado", continua no histórico e deixa de entrar nos totais.
+     */
+    tr.querySelector('[data-action="cancelar"]').addEventListener("click", async () => {
+      const confirmou = confirm(
+        `Cancelar o pagamento de ${pagamento.jogador}? Ele continuará no histórico, mas não entrará nos totais.`
+      );
 
       if (!confirmou) {
         return;
       }
 
-      const resposta = await fetch(`/api/pagamentos/${pagamento.id}`, {
-        method: "DELETE"
+      const resposta = await fetch(`/api/pagamentos/${pagamento.id}/cancelar`, {
+        method: "PATCH"
       });
 
       if (redirecionarSeNaoAutenticado(resposta)) {
         return;
       }
 
-      // 204 = excluído. Qualquer outro status de erro mostra a mensagem da API.
       if (!resposta.ok) {
         const erro = await resposta.json();
-        mostrarErros(erro.erros || ["Nao foi possivel excluir o pagamento."]);
+        mostrarErros(erro.erros || ["Nao foi possivel cancelar o pagamento."]);
         return;
       }
 
@@ -231,6 +311,8 @@ form.addEventListener("submit", async (event) => {
 cancelarButton.addEventListener("click", limparFormulario);
 filtroMesInput.addEventListener("change", buscarPagamentos);
 valorInput.addEventListener("input", manterSomenteValorMonetario);
+jogadorInput.addEventListener("change", sugerirValorDaMensalidade);
 
 limparFormulario();
+carregarOpcoesJogadores();
 buscarPagamentos();

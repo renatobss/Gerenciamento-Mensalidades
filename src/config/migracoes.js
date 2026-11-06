@@ -55,6 +55,76 @@ const MIGRACOES = [
         CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email_unico ON usuarios (lower(email)) WHERE email IS NOT NULL;
       `);
     }
+  },
+  {
+    versao: 2,
+    descricao: "Cadastro de jogadores, vínculo com pagamentos e importação dos nomes existentes",
+    executar(db) {
+      // 1. Tabela de jogadores. CPF e telefone são guardados só com dígitos.
+      db.exec(`
+        CREATE TABLE jogadores (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nome_completo TEXT NOT NULL,
+          cpf TEXT,
+          telefone TEXT,
+          data_nascimento TEXT,
+          data_entrada TEXT NOT NULL,
+          valor_mensalidade REAL NOT NULL,
+          ativo INTEGER NOT NULL DEFAULT 1,
+          observacoes TEXT,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        -- CPF único somente quando preenchido (índice parcial).
+        CREATE UNIQUE INDEX idx_jogadores_cpf_unico ON jogadores (cpf) WHERE cpf IS NOT NULL;
+        CREATE INDEX idx_jogadores_nome ON jogadores (lower(nome_completo));
+      `);
+
+      /**
+       * 2. Vínculo pagamento → jogador (CHAVE ESTRANGEIRA).
+       * REFERENCES jogadores(id) diz ao banco que jogador_id precisa apontar
+       * para um jogador existente. A coluna antiga "jogador" (texto) é MANTIDA:
+       * nada é apagado, e ela serve de histórico do nome no momento do pagamento.
+       */
+      db.exec(`
+        ALTER TABLE pagamentos ADD COLUMN jogador_id INTEGER REFERENCES jogadores (id);
+        CREATE INDEX idx_pagamentos_jogador ON pagamentos (jogador_id);
+      `);
+
+      /**
+       * 3. Importação: cada nome distinto dos pagamentos vira um jogador.
+       * - nome: a grafia usada no pagamento mais recente;
+       * - data de entrada: data do PRIMEIRO pagamento;
+       * - mensalidade: valor do pagamento MAIS RECENTE.
+       * GROUP BY lower(trim(...)) junta "joao" e "Joao " como a mesma pessoa.
+       * As subconsultas com ORDER BY ... LIMIT 1 pegam o registro mais recente.
+       */
+      db.exec(`
+        INSERT INTO jogadores (nome_completo, data_entrada, valor_mensalidade, observacoes)
+        SELECT
+          (SELECT trim(p2.jogador) FROM pagamentos p2
+            WHERE lower(trim(p2.jogador)) = lower(trim(p.jogador))
+            ORDER BY p2.data_pagamento DESC, p2.id DESC LIMIT 1),
+          MIN(p.data_pagamento),
+          (SELECT p3.valor FROM pagamentos p3
+            WHERE lower(trim(p3.jogador)) = lower(trim(p.jogador))
+            ORDER BY p3.data_pagamento DESC, p3.id DESC LIMIT 1),
+          'Cadastro criado automaticamente a partir dos pagamentos existentes.'
+        FROM pagamentos p
+        WHERE trim(p.jogador) <> ''
+        GROUP BY lower(trim(p.jogador));
+      `);
+
+      // 4. Liga cada pagamento ao jogador importado com o mesmo nome.
+      db.exec(`
+        UPDATE pagamentos
+        SET jogador_id = (
+          SELECT j.id FROM jogadores j
+          WHERE lower(trim(j.nome_completo)) = lower(trim(pagamentos.jogador))
+        )
+      `);
+    }
   }
 ];
 

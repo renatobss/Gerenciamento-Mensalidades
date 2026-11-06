@@ -8,35 +8,71 @@
  *   Controller → lê a requisição (req) e monta a resposta (res)
  *   Service    → aplica as regras e conversa com o banco  ← você está aqui
  *
- * O service não conhece "req" nem "res". Ele recebe dados simples e devolve
- * dados simples. Isso permite reaproveitá-lo (ex.: no dashboard) e testá-lo
- * isoladamente.
+ * Regras (Etapa 4):
+ * - Todo pagamento pertence a um JOGADOR cadastrado (jogador_id).
+ * - Jogador INATIVO não recebe novos pagamentos (mas os antigos continuam).
+ * - Não existe mais exclusão física: o pagamento é CANCELADO (status
+ *   "Cancelado"), preservando o histórico financeiro. Cancelados não entram
+ *   nos totais e não podem ser editados.
  *
- * Segurança: todas as consultas usam "?" (parâmetros). O banco trata o valor
- * como DADO e nunca como parte do comando SQL, o que impede SQL Injection.
+ * Segurança: todas as consultas usam "?" (parâmetros), o que impede SQL Injection.
  */
 const db = require("../config/database");
 const AppError = require("../utils/AppError");
-const { validarPagamento, converterId } = require("../validators/pagamentoValidator");
+const jogadorService = require("./jogadorService");
+const { converterId } = require("../utils/consultas");
+const { validarPagamento, STATUS_CANCELADO } = require("../validators/pagamentoValidator");
 
-// Colunas devolvidas pela API. Centralizar evita repetir a lista em cada SELECT.
-const COLUNAS = "id, jogador, data_pagamento, valor, status";
+/**
+ * Colunas devolvidas pela API.
+ *
+ * LEFT JOIN: junta cada pagamento com o seu jogador. "LEFT" garante que o
+ * pagamento apareça mesmo se, por algum motivo, não houver jogador ligado.
+ * coalesce(j.nome_completo, p.jogador): usa o nome ATUAL do cadastro; se não
+ * houver vínculo, usa o nome em texto gravado no pagamento.
+ */
+const COLUNAS = `
+  p.id,
+  p.jogador_id,
+  coalesce(j.nome_completo, p.jogador) AS jogador,
+  p.data_pagamento,
+  p.valor,
+  p.status
+`;
+const FROM = "FROM pagamentos p LEFT JOIN jogadores j ON j.id = p.jogador_id";
 
 /**
  * Busca um pagamento pelo id.
  * @param {number} id
- * @returns {object|undefined} O pagamento, ou undefined se não existir.
+ * @returns {object|undefined}
  */
 function buscarPorId(id) {
-  return db.prepare(`SELECT ${COLUNAS} FROM pagamentos WHERE id = ?`).get(id);
+  return db.prepare(`SELECT ${COLUNAS} ${FROM} WHERE p.id = ?`).get(id);
+}
+
+/**
+ * Converte o id da URL e garante que o pagamento exista.
+ * @param {string} idTexto
+ * @returns {object}
+ * @throws {AppError} 400 ou 404.
+ */
+function obterExistente(idTexto) {
+  const id = converterId(idTexto);
+  if (!id) {
+    throw new AppError("ID invalido.", 400);
+  }
+  const pagamento = buscarPorId(id);
+  if (!pagamento) {
+    throw new AppError("Pagamento nao encontrado.", 404);
+  }
+  return pagamento;
 }
 
 /**
  * Soma o valor dos pagamentos que têm determinado status.
  * Conceito: filter (seleciona itens) + reduce (acumula um resultado).
- *
  * @param {object[]} pagamentos
- * @param {string} status - "Pago" ou "Pendente".
+ * @param {string} status
  * @returns {number}
  */
 function somarPorStatus(pagamentos, status) {
@@ -47,28 +83,22 @@ function somarPorStatus(pagamentos, status) {
 
 /**
  * Lista os pagamentos, opcionalmente filtrando por mês, e calcula os totais.
+ * Cancelados aparecem na lista (histórico), mas não entram nos totais.
  *
- * @param {string} [mes] - Mês no formato AAAA-MM (ex.: "2026-11"). Vazio = todos.
+ * @param {string} [mes] - Mês no formato AAAA-MM. Vazio = todos.
  * @returns {{ pagamentos: object[], totalPago: number, totalPendente: number }}
  */
 function listar(mes) {
-  let pagamentos;
-
-  if (mes) {
-    // substr(data, 1, 7) pega "AAAA-MM" de "AAAA-MM-DD" para comparar com o mês.
-    pagamentos = db.prepare(`
-      SELECT ${COLUNAS}
-      FROM pagamentos
-      WHERE substr(data_pagamento, 1, 7) = ?
-      ORDER BY data_pagamento DESC, id DESC
-    `).all(mes);
-  } else {
-    pagamentos = db.prepare(`
-      SELECT ${COLUNAS}
-      FROM pagamentos
-      ORDER BY data_pagamento DESC, id DESC
-    `).all();
-  }
+  const pagamentos = mes
+    ? db.prepare(`
+        SELECT ${COLUNAS} ${FROM}
+        WHERE substr(p.data_pagamento, 1, 7) = ?
+        ORDER BY p.data_pagamento DESC, p.id DESC
+      `).all(mes)
+    : db.prepare(`
+        SELECT ${COLUNAS} ${FROM}
+        ORDER BY p.data_pagamento DESC, p.id DESC
+      `).all();
 
   return {
     pagamentos,
@@ -78,84 +108,82 @@ function listar(mes) {
 }
 
 /**
- * Cadastra um novo pagamento.
- *
- * @param {object} dados - Dados recebidos do cliente.
- * @returns {object} O pagamento criado (com id).
- * @throws {AppError} 400 se os dados forem inválidos.
+ * Valida os dados e confere o jogador.
+ * @param {object} dados - Corpo da requisição.
+ * @param {number|null} [jogadorIdAtual] - Na edição, o jogador já vinculado
+ *   pode continuar mesmo que tenha sido inativado depois.
+ * @returns {{ pagamento: object, jogador: object }}
+ * @throws {AppError} 400 ou 404.
  */
-function criar(dados) {
+function validarComJogador(dados, jogadorIdAtual = null) {
   const { erros, pagamento } = validarPagamento(dados);
-
   if (erros.length > 0) {
     throw new AppError(erros, 400);
   }
 
-  const resultado = db.prepare(`
-    INSERT INTO pagamentos (jogador, data_pagamento, valor, status)
-    VALUES (?, ?, ?, ?)
-  `).run(pagamento.jogador, pagamento.data_pagamento, pagamento.valor, pagamento.status);
+  const jogador = jogadorService.obterExistente(pagamento.jogadorId);
+  if (!jogador.ativo && jogador.id !== jogadorIdAtual) {
+    throw new AppError("Jogador inativo não pode receber novos pagamentos.", 400);
+  }
+  return { pagamento, jogador };
+}
 
-  // lastInsertRowid = id gerado automaticamente pelo AUTOINCREMENT.
+/**
+ * Cadastra um novo pagamento.
+ * A coluna de texto "jogador" continua sendo preenchida com o nome do jogador
+ * (histórico e compatibilidade com a estrutura antiga).
+ *
+ * @param {object} dados
+ * @returns {object} O pagamento criado.
+ * @throws {AppError} 400 ou 404.
+ */
+function criar(dados) {
+  const { pagamento, jogador } = validarComJogador(dados);
+
+  const resultado = db.prepare(`
+    INSERT INTO pagamentos (jogador_id, jogador, data_pagamento, valor, status)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(jogador.id, jogador.nomeCompleto, pagamento.data_pagamento, pagamento.valor, pagamento.status);
+
   return buscarPorId(resultado.lastInsertRowid);
 }
 
 /**
- * Atualiza um pagamento existente.
- *
- * @param {string} idTexto - Id vindo da URL.
- * @param {object} dados - Novos dados.
+ * Atualiza um pagamento existente (cancelados não podem ser editados).
+ * @param {string} idTexto
+ * @param {object} dados
  * @returns {object} O pagamento atualizado.
- * @throws {AppError} 400 (id/dados inválidos) ou 404 (não encontrado).
+ * @throws {AppError} 400 ou 404.
  */
 function atualizar(idTexto, dados) {
-  const id = converterId(idTexto);
+  const atual = obterExistente(idTexto);
 
-  if (!id) {
-    throw new AppError("ID invalido.", 400);
+  if (atual.status === STATUS_CANCELADO) {
+    throw new AppError("Pagamento cancelado não pode ser editado.", 400);
   }
 
-  const { erros, pagamento } = validarPagamento(dados);
+  const { pagamento, jogador } = validarComJogador(dados, atual.jogador_id);
 
-  if (erros.length > 0) {
-    throw new AppError(erros, 400);
-  }
-
-  const resultado = db.prepare(`
+  db.prepare(`
     UPDATE pagamentos
-    SET jogador = ?, data_pagamento = ?, valor = ?, status = ?
+    SET jogador_id = ?, jogador = ?, data_pagamento = ?, valor = ?, status = ?
     WHERE id = ?
-  `).run(pagamento.jogador, pagamento.data_pagamento, pagamento.valor, pagamento.status, id);
+  `).run(jogador.id, jogador.nomeCompleto, pagamento.data_pagamento, pagamento.valor, pagamento.status, atual.id);
 
-  // changes = quantidade de linhas afetadas. Zero = nenhum registro com esse id.
-  if (resultado.changes === 0) {
-    throw new AppError("Pagamento nao encontrado.", 404);
-  }
-
-  return buscarPorId(id);
+  return buscarPorId(atual.id);
 }
 
 /**
- * Exclui um pagamento.
- * Observação: hoje a exclusão é FÍSICA (o registro some do banco). Em uma
- * próxima etapa será trocada por cancelamento lógico (status "Cancelado"),
- * preservando o histórico financeiro.
- *
- * @param {string} idTexto - Id vindo da URL.
- * @throws {AppError} 400 (id inválido) ou 404 (não encontrado).
+ * Cancela um pagamento (exclusão LÓGICA: o registro continua no banco).
+ * Cancelar algo já cancelado não gera erro (operação "idempotente").
+ * @param {string} idTexto
+ * @returns {object} O pagamento cancelado.
+ * @throws {AppError} 400 ou 404.
  */
-function excluir(idTexto) {
-  const id = converterId(idTexto);
-
-  if (!id) {
-    throw new AppError("ID invalido.", 400);
-  }
-
-  const resultado = db.prepare("DELETE FROM pagamentos WHERE id = ?").run(id);
-
-  if (resultado.changes === 0) {
-    throw new AppError("Pagamento nao encontrado.", 404);
-  }
+function cancelar(idTexto) {
+  const atual = obterExistente(idTexto);
+  db.prepare("UPDATE pagamentos SET status = ? WHERE id = ?").run(STATUS_CANCELADO, atual.id);
+  return buscarPorId(atual.id);
 }
 
-module.exports = { listar, criar, atualizar, excluir };
+module.exports = { listar, criar, atualizar, cancelar };

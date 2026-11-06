@@ -894,6 +894,37 @@ button:disabled {
   border-color: var(--danger);
 }
 
+.campo textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.campo textarea:focus {
+  border-color: var(--primary);
+  outline: 3px solid rgba(37, 111, 75, 0.15);
+}
+
+.texto-alerta {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+/* Status "Cancelado" dos pagamentos */
+.status.cancelado {
+  background: #eef0ef;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+tr.linha-cancelada td {
+  color: var(--muted);
+}
+
 /* Modal (<dialog>) */
 .modal {
   width: min(640px, calc(100vw - 32px));

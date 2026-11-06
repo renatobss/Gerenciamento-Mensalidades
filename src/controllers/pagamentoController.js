@@ -7,8 +7,6 @@
  *   3. Devolve a resposta com o status HTTP correto.
  *
  * O controller NÃO valida regras nem acessa o banco: isso é papel do service.
- * Se o service lançar um AppError, o wrapper capturarErros (usado nas rotas)
- * envia o erro para o middleware tratadorErros.
  */
 const pagamentoService = require("../services/pagamentoService");
 
@@ -20,20 +18,27 @@ function listar(req, res) {
 
 /** POST /api/pagamentos → 201 (Created) com o pagamento criado */
 function criar(req, res) {
-  const pagamentoCriado = pagamentoService.criar(req.body);
-  res.status(201).json(pagamentoCriado);
+  res.status(201).json(pagamentoService.criar(req.body || {}));
 }
 
 /** PUT /api/pagamentos/:id → 200 com o pagamento atualizado */
 function atualizar(req, res) {
-  const pagamentoAtualizado = pagamentoService.atualizar(req.params.id, req.body);
-  res.json(pagamentoAtualizado);
+  res.json(pagamentoService.atualizar(req.params.id, req.body || {}));
 }
 
-/** DELETE /api/pagamentos/:id → 204 (No Content): sucesso, sem corpo na resposta */
+/** PATCH /api/pagamentos/:id/cancelar → 200 com o pagamento cancelado */
+function cancelar(req, res) {
+  res.json(pagamentoService.cancelar(req.params.id));
+}
+
+/**
+ * DELETE /api/pagamentos/:id → 204
+ * Mantido por compatibilidade com a versão anterior, mas agora CANCELA o
+ * pagamento em vez de apagá-lo (o histórico financeiro é preservado).
+ */
 function excluir(req, res) {
-  pagamentoService.excluir(req.params.id);
+  pagamentoService.cancelar(req.params.id);
   res.status(204).send();
 }
 
-module.exports = { listar, criar, atualizar, excluir };
+module.exports = { listar, criar, atualizar, cancelar, excluir };

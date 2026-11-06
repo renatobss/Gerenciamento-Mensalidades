@@ -3,12 +3,13 @@
  * --------------------------------
  * Montadas em src/app.js com app.use("/api/pagamentos", pagamentoRoutes).
  *
- * | Método | URL                     | Ação                 |
- * |--------|-------------------------|----------------------|
- * | GET    | /api/pagamentos?mes=... | listar (com totais)  |
- * | POST   | /api/pagamentos         | cadastrar            |
- * | PUT    | /api/pagamentos/:id     | atualizar            |
- * | DELETE | /api/pagamentos/:id     | excluir              |
+ * | Método | URL                            | Ação                                   |
+ * |--------|--------------------------------|----------------------------------------|
+ * | GET    | /api/pagamentos?mes=...        | listar (com totais)                    |
+ * | POST   | /api/pagamentos                | cadastrar                              |
+ * | PUT    | /api/pagamentos/:id            | atualizar                              |
+ * | PATCH  | /api/pagamentos/:id/cancelar   | cancelar (exclusão lógica)             |
+ * | DELETE | /api/pagamentos/:id            | compatibilidade: também apenas cancela |
  *
  * ":id" é um PARÂMETRO DE ROTA: em /api/pagamentos/15, req.params.id = "15".
  */
@@ -27,6 +28,7 @@ router.use(exigirAutenticacao);
 router.get("/", capturarErros(pagamentoController.listar));
 router.post("/", capturarErros(pagamentoController.criar));
 router.put("/:id", capturarErros(pagamentoController.atualizar));
+router.patch("/:id/cancelar", capturarErros(pagamentoController.cancelar));
 router.delete("/:id", capturarErros(pagamentoController.excluir));
 
 module.exports = router;
