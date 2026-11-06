@@ -123,7 +123,13 @@ describe("Painel", () => {
       cy.criarPagamento({ jogador_id: jogador.id, data_pagamento: "2025-08-12", valor: "123" });
       cy.visit("/");
       cy.dataTest("filtro-mes-dashboard").clear().type("2025-08").blur();
-      cy.dataTest("valor-arrecadado-mes").should("contain", formatarMoeda(123));
+
+      // Não supomos que o mês estava vazio (outros testes podem ter lançado nele):
+      // perguntamos à API o total real e conferimos se a TELA mostra o mesmo valor.
+      cy.request("/api/dashboard?mes=2025-08").then(({ body }) => {
+        expect(body.totalPagoMes).to.be.at.least(123);
+        cy.dataTest("valor-arrecadado-mes").should("have.text", formatarMoeda(body.totalPagoMes));
+      });
     });
   });
 });
