@@ -63,15 +63,8 @@ function validarPagamento(dados = {}) {
   };
 }
 
-/**
- * Converte e valida um id vindo da URL (req.params.id chega sempre como texto).
- *
- * @param {string} idTexto - Ex.: "15".
- * @returns {number|null} O id numérico, ou null se não for um inteiro positivo.
- */
-function converterId(idTexto) {
-  const id = Number(idTexto);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
+// converterId agora mora em src/utils/consultas.js (é usado por vários módulos).
+// Continua exportado aqui para não quebrar quem já importava deste arquivo.
+const { converterId } = require("../utils/consultas");
 
 module.exports = { validarPagamento, converterId, STATUS_VALIDOS };

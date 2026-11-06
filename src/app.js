@@ -10,8 +10,9 @@
  *   3. Rotas de autenticação (/api)   → públicas (login/logout)
  *   4. Proteção geral                 → daqui para baixo, só usuário logado
  *   5. Rotas da API protegidas
- *   6. Arquivos estáticos (public/)
- *   7. 404 da API e tratador de erros → sempre por último
+ *   6. Páginas restritas por perfil
+ *   7. Arquivos estáticos (public/)
+ *   8. 404 da API e tratador de erros → sempre por último
  *
  * Por que separar app.js de server.js? O app.js só CONFIGURA; o server.js
  * LIGA o servidor (listen). Assim o app pode ser reaproveitado em testes
@@ -24,7 +25,11 @@ const session = require("express-session");
 const { segredoSessao, sessaoDuracaoHoras } = require("./config/ambiente");
 const authRoutes = require("./routes/authRoutes");
 const pagamentoRoutes = require("./routes/pagamentoRoutes");
+const usuarioRoutes = require("./routes/usuarioRoutes");
+const usuarioService = require("./services/usuarioService");
+const { PERFIS } = require("./config/perfis");
 const { protegerRecursos } = require("./middlewares/autenticacao");
+const { exigirPerfil } = require("./middlewares/autorizacao");
 const { rotaApiNaoEncontrada, tratadorErros } = require("./middlewares/tratadorErros");
 
 const app = express();
@@ -46,9 +51,10 @@ app.use(session({
 
 app.use(express.json()); // converte o corpo JSON da requisição em req.body
 
-// 2. Tela de login: pública. Quem já está logado é levado direto ao sistema.
+// 2. Tela de login: pública. Quem já está logado (e ativo) vai direto ao sistema.
 app.get(["/login", "/login.html"], (req, res) => {
-  if (req.session.usuarioLogado) {
+  const usuarioId = req.session.usuarioId;
+  if (usuarioId && usuarioService.buscarAtivoParaSessao(usuarioId)) {
     return res.redirect("/");
   }
   return res.sendFile(path.join(PASTA_PUBLICA, "login.html"));
@@ -62,11 +68,17 @@ app.use(protegerRecursos);
 
 // 5. API protegida.
 app.use("/api/pagamentos", pagamentoRoutes);
+app.use("/api/usuarios", usuarioRoutes);
 
-// 6. Arquivos estáticos: index.html, app.js, styles.css...
+// 6. Páginas restritas por perfil (verificadas ANTES de servir o arquivo).
+//    A API de usuários já é protegida; isto evita que um usuário comum veja
+//    a página vazia de administração.
+app.get("/usuarios.html", exigirPerfil(PERFIS.ADMIN));
+
+// 7. Arquivos estáticos: index.html, usuarios.html, js/, styles.css...
 app.use(express.static(PASTA_PUBLICA));
 
-// 7. Tratamento de erros (sempre no final).
+// 8. Tratamento de erros (sempre no final).
 app.use("/api", rotaApiNaoEncontrada);
 app.use(tratadorErros);
 

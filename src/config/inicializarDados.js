@@ -13,6 +13,7 @@
 const db = require("./database");
 const { adminSenhaInicial } = require("./ambiente");
 const { gerarHash, ehHash } = require("../utils/senha");
+const { PERFIS } = require("./perfis");
 
 /**
  * Converte para hash todas as senhas que ainda estão em texto puro.
@@ -44,8 +45,10 @@ async function criarAdminInicialSeNecessario() {
     return false;
   }
 
-  db.prepare("INSERT INTO usuarios (nome, senha) VALUES (?, ?)")
-    .run("admin", await gerarHash(adminSenhaInicial));
+  db.prepare(`
+    INSERT INTO usuarios (nome, senha, nome_completo, perfil, ativo, criado_em, atualizado_em)
+    VALUES (?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+  `).run("admin", await gerarHash(adminSenhaInicial), "Administrador", PERFIS.ADMIN);
   return true;
 }
 

@@ -21,7 +21,8 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Fontes do sistema operacional: modernas e sem download extra */
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
 }
 
 .topbar {
@@ -181,20 +182,6 @@ button.small {
   font-size: 0.85rem;
 }
 
-/* Link "Sair" do cabeçalho (provisório até o novo layout da Etapa 5) */
-.logout-link {
-  padding: 10px 16px;
-  border-radius: 6px;
-  background: #e8efe9;
-  color: var(--text);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.logout-link:hover {
-  background: var(--border);
-}
-
 .list-panel {
   min-width: 0;
 }
@@ -301,15 +288,21 @@ th {
   display: none !important;
 }
 
+/* Texto visível só para leitores de tela (acessibilidade) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* ==========================================================================
    Tela de Login
    Layout em duas colunas no desktop (marca | formulário) e uma coluna no
    celular. Cores derivadas das variáveis --primary do :root (verde gramado).
    ========================================================================== */
-
-.login-page {
-  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-}
 
 .login-container {
   display: grid;
@@ -561,5 +554,516 @@ th {
   .login-cartao {
     align-self: start;
     padding: 28px 20px;
+  }
+}
+
+/* ==========================================================================
+   Estrutura das páginas internas (menu lateral + conteúdo)
+   Usada por index.html e usuarios.html. O menu é desenhado por js/layout.js.
+   ========================================================================== */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-principal {
+  min-width: 0; /* permite que tabelas largas rolem em vez de esticar a página */
+}
+
+/* ---- Menu lateral ---- */
+.sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 22px 14px;
+  background: linear-gradient(180deg, #123d29 0%, #174a31 100%);
+  color: #ffffff;
+}
+
+.sidebar-marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 8px 28px;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.sidebar-marca-icone {
+  font-size: 1.5rem;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.sidebar-link.ativo {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 3px 0 0 #7fd3a3;
+  color: #ffffff;
+}
+
+.sidebar-link-icone {
+  width: 22px;
+  text-align: center;
+}
+
+.sidebar-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-usuario {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-usuario strong,
+.sidebar-usuario span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-usuario span {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.8rem;
+}
+
+.sidebar-sair {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sidebar-sair:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Barra superior que só aparece no celular (com o botão "hambúrguer") */
+.topo-mobile {
+  display: none;
+}
+
+.sidebar-fundo {
+  display: none;
+}
+
+/* ==========================================================================
+   Componentes padronizados
+   ========================================================================== */
+
+.pagina {
+  padding: 32px clamp(16px, 4vw, 44px) 48px;
+}
+
+.pagina-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pagina-cabecalho h1 {
+  font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+}
+
+.pagina-descricao {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+/* Botões: as classes .btn-* ajustam o estilo base de "button" */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.btn-secundario {
+  background: #e8efe9;
+  color: var(--text);
+}
+
+.btn-secundario:hover {
+  background: var(--border);
+}
+
+.btn-perigo {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.btn-perigo:hover {
+  background: #8f1c13;
+}
+
+.btn-contorno-perigo {
+  background: #fdecea;
+  color: var(--danger);
+}
+
+.btn-contorno-perigo:hover {
+  background: #f9d7d2;
+}
+
+.btn-pequeno {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Barra de pesquisa e filtros */
+.barra-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.barra-filtros input,
+.barra-filtros select {
+  margin-bottom: 0;
+}
+
+.barra-filtros .campo-pesquisa {
+  flex: 1 1 260px;
+}
+
+.barra-filtros select {
+  flex: 0 0 170px;
+}
+
+/* Tabela */
+.tabela th,
+.tabela td {
+  padding: 13px 20px;
+}
+
+.tabela thead th {
+  border-top: 0;
+  background: #f8faf8;
+}
+
+.tabela tbody tr:hover {
+  background: #f8faf8;
+}
+
+.texto-secundario {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.acoes-tabela {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Etiquetas (perfil / situação) */
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.etiqueta-ativo {
+  background: #e5f4ea;
+  color: var(--primary-dark);
+}
+
+.etiqueta-inativo {
+  background: #eef0ef;
+  color: var(--muted);
+}
+
+.etiqueta-admin {
+  background: #e3ecf8;
+  color: #1f4f8a;
+}
+
+.etiqueta-comum {
+  background: #f1f1ee;
+  color: #4d544f;
+}
+
+.estado-vazio {
+  margin: 0;
+  padding: 36px 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Paginação */
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.paginacao-botoes {
+  display: flex;
+  gap: 8px;
+}
+
+/* Formulário em grade (2 colunas no desktop) */
+.form-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.form-grade .campo-largo {
+  grid-column: 1 / -1;
+}
+
+.campo-dica {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.obrigatorio {
+  color: var(--danger);
+}
+
+.campo select {
+  min-height: 46px;
+  margin-bottom: 0;
+}
+
+.campo select.invalido {
+  border-color: var(--danger);
+}
+
+/* Modal (<dialog>) */
+.modal {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(15, 30, 20, 0.3);
+}
+
+.modal-pequeno {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.modal::backdrop {
+  background: rgba(16, 30, 22, 0.55);
+}
+
+.modal[open] {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-conteudo {
+  padding: 26px 26px 22px;
+}
+
+.modal-titulo {
+  margin-bottom: 18px;
+}
+
+.modal-texto {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Toasts (avisos temporários) */
+.toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(380px, calc(100vw - 40px));
+}
+
+.toast {
+  padding: 13px 16px;
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 30, 20, 0.18);
+  font-weight: 600;
+  animation: toastEntrar 0.25s ease-out;
+}
+
+.toast-erro {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.toast-info {
+  border-left-color: var(--warning);
+}
+
+.toast.saindo {
+  animation: toastSair 0.25s ease-in forwards;
+}
+
+@keyframes toastEntrar {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastSair {
+  to { opacity: 0; transform: translateY(12px); }
+}
+
+/* ==========================================================================
+   Responsivo das páginas internas
+   ========================================================================== */
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  /* No celular o menu vira uma "gaveta" que desliza da esquerda */
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .menu-aberto .sidebar {
+    transform: translateX(0);
+  }
+
+  .menu-aberto .sidebar-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: block;
+    background: rgba(16, 30, 22, 0.5);
+  }
+
+  .topo-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #123d29;
+    color: #ffffff;
+    font-weight: 800;
+  }
+
+  .topo-mobile button {
+    min-height: 38px;
+    padding: 0 12px;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 1.2rem;
+  }
+
+  .form-grade {
+    grid-template-columns: 1fr;
+  }
+
+  /* Tabela vira "cartões": cada linha empilha seus campos com o rótulo ao lado */
+  .tabela-responsiva thead {
+    display: none;
+  }
+
+  .tabela-responsiva tr {
+    display: block;
+    padding: 10px 4px;
+    border-top: 1px solid var(--border);
+  }
+
+  .tabela-responsiva td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 16px;
+    border: 0;
+    text-align: right;
+  }
+
+  /* O rótulo vem do atributo data-rotulo de cada célula */
+  .tabela-responsiva td::before {
+    content: attr(data-rotulo);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .tabela-responsiva td.estado-vazio::before {
+    content: none;
   }
 }

@@ -64,7 +64,7 @@ function validarFormulario() {
   const usuarioVazio = campoUsuario.value.trim() === "";
   const senhaVazia = campoSenha.value === "";
 
-  definirErroCampo(campoUsuario, erroUsuario, usuarioVazio ? "Informe o usuário." : "");
+  definirErroCampo(campoUsuario, erroUsuario, usuarioVazio ? "Informe o usuário ou e-mail." : "");
   definirErroCampo(campoSenha, erroSenha, senhaVazia ? "Informe a senha." : "");
 
   // Coloca o cursor no primeiro campo com problema (boa prática de usabilidade).
@@ -137,10 +137,11 @@ async function enviarLogin(evento) {
       return; // mantém o botão em "Entrando..." até a nova página carregar
     }
 
-    // 400 e 429 trazem mensagens específicas do backend; os demais usam as nossas.
+    // 400 (dados inválidos), 403 (usuário inativo) e 429 (bloqueio) trazem
+    // mensagens específicas do backend; os demais usam as nossas.
     const dados = await resposta.json().catch(() => ({}));
     const mensagemBackend = Array.isArray(dados.erros) ? dados.erros.join(" ") : "";
-    const mensagem = [400, 429].includes(resposta.status) && mensagemBackend
+    const mensagem = [400, 403, 429].includes(resposta.status) && mensagemBackend
       ? mensagemBackend
       : MENSAGENS_POR_STATUS[resposta.status] || MENSAGENS_POR_STATUS[500];
 

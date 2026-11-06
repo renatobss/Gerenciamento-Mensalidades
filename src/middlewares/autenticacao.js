@@ -8,6 +8,7 @@
  *
  * Funciona como uma "catraca" na entrada do estádio: só passa quem tem ingresso.
  */
+const usuarioService = require("../services/usuarioService");
 
 /**
  * Arquivos que qualquer pessoa pode acessar sem estar logada.
@@ -18,26 +19,50 @@
 const RECURSOS_PUBLICOS = ["/login.js", "/styles.css", "/favicon.ico"];
 
 /**
- * Verifica se existe um usuário logado na sessão.
- * - Requisições de API (/api/...) recebem 401 em JSON, pois quem chama é o
- *   JavaScript (fetch) e ele precisa de uma resposta que consiga interpretar.
- * - Páginas recebem um redirecionamento para a tela de login.
+ * Responde "não autenticado" do jeito certo para cada tipo de requisição:
+ * - API (/api/...): 401 em JSON, pois quem chama é o JavaScript (fetch);
+ * - Páginas: redireciona para a tela de login.
+ */
+function responderNaoAutenticado(req, res) {
+  // originalUrl mantém o caminho completo mesmo dentro de um Router.
+  if (req.originalUrl.startsWith("/api/")) {
+    return res.status(401).json({ erros: ["Nao autorizado. Faça login para continuar."] });
+  }
+  return res.redirect("/login.html");
+}
+
+/**
+ * Verifica se existe um usuário logado e ATIVO.
+ *
+ * A sessão guarda apenas o id do usuário. A cada requisição, buscamos os dados
+ * atualizados no banco e colocamos em req.usuario. Vantagens:
+ * - um usuário inativado perde o acesso NA HORA (não precisa esperar a sessão expirar);
+ * - uma mudança de perfil vale imediatamente.
+ * O custo é uma consulta rápida por requisição, irrelevante neste sistema.
  *
  * @param {import("express").Request} req
  * @param {import("express").Response} res
  * @param {import("express").NextFunction} next
  */
 function exigirAutenticacao(req, res, next) {
-  if (req.session && req.session.usuarioLogado) {
+  // Se outro middleware já validou nesta mesma requisição, não repete a consulta.
+  if (req.usuario) {
     return next();
   }
 
-  // originalUrl mantém o caminho completo mesmo dentro de um Router.
-  if (req.originalUrl.startsWith("/api/")) {
-    return res.status(401).json({ erros: ["Nao autorizado. Faça login para continuar."] });
+  const usuarioId = req.session && req.session.usuarioId;
+  const usuario = usuarioId ? usuarioService.buscarAtivoParaSessao(usuarioId) : null;
+
+  if (!usuario) {
+    // Sessão de usuário removido/inativado: encerramos a sessão antiga.
+    if (usuarioId) {
+      return req.session.destroy(() => responderNaoAutenticado(req, res));
+    }
+    return responderNaoAutenticado(req, res);
   }
 
-  return res.redirect("/login.html");
+  req.usuario = usuario; // disponível para os próximos middlewares e controllers
+  return next();
 }
 
 /**

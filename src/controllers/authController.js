@@ -17,7 +17,7 @@ const authService = require("../services/authService");
  * POST /api/login
  * Corpo esperado: { "usuario": "admin", "senha": "..." }
  * Respostas: 200 (sucesso), 400 (dados inválidos), 401 (credenciais inválidas),
- * 429 (bloqueado por excesso de tentativas).
+ * 403 (usuário inativo), 429 (bloqueado por excesso de tentativas).
  *
  * Função "async" porque a verificação do hash (scrypt) é assíncrona.
  * Os erros lançados pelo service chegam ao tratadorErros via capturarErros.
@@ -36,8 +36,9 @@ async function login(req, res) {
       return res.status(500).json({ erros: ["Erro ao tentar fazer login."] });
     }
 
-    req.session.usuarioLogado = true;        // usado pelo middleware de autenticação
-    req.session.usuario = usuarioAutenticado; // quem é o usuário (base dos perfis na Etapa 3)
+    // Guardamos só o ID. Os demais dados (perfil, situação) são lidos do banco
+    // a cada requisição pelo middleware exigirAutenticacao, sempre atualizados.
+    req.session.usuarioId = usuarioAutenticado.id;
 
     return res.status(200).json({ mensagem: "Login bem-sucedido.", usuario: usuarioAutenticado });
   });
@@ -56,11 +57,12 @@ function logout(req, res) {
 
 /**
  * GET /api/sessao (protegida)
- * Devolve os dados públicos do usuário logado. O frontend usa isso para
- * mostrar o nome no cabeçalho e, nas próximas etapas, os menus por perfil.
+ * Devolve os dados públicos do usuário logado (req.usuario, preenchido pelo
+ * middleware). O frontend usa isso para mostrar o nome no menu e exibir
+ * somente as opções permitidas para o perfil.
  */
 function sessaoAtual(req, res) {
-  res.json({ usuario: req.session.usuario });
+  res.json({ usuario: req.usuario });
 }
 
 module.exports = { login, logout, sessaoAtual };

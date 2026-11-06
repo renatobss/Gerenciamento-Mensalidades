@@ -7,6 +7,22 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!--
+    Estrutura padrão das páginas internas:
+    - aside#menuLateral: menu lateral, desenhado por js/layout.js conforme o perfil;
+    - .topo-mobile: barra com o botão "hambúrguer", visível só no celular;
+    - .app-principal: conteúdo da página.
+  -->
+  <div class="app-shell">
+  <aside id="menuLateral" class="sidebar" data-test="menu-lateral"></aside>
+  <div class="sidebar-fundo"></div>
+
+  <div class="app-principal">
+  <div class="topo-mobile">
+    <button type="button" aria-label="Abrir menu" aria-expanded="false" data-test="btn-menu">☰</button>
+    <span>Mensalidades FC</span>
+  </div>
+
   <header class="topbar">
     <div>
       <p class="eyebrow">Tesouraria do grupo</p>
@@ -20,8 +36,6 @@
       <span>Total pago</span>
       <strong id="totalPago">R$ 0,00</strong>
     </div>
-    <!-- Link de saída: chama GET /api/logout, que destrói a sessão e volta ao login -->
-    <a href="/api/logout" class="logout-link" data-test="btn-sair">Sair</a>
   </header>
 
   <main class="layout">
@@ -84,7 +98,11 @@
       </div>
     </section>
   </main>
+  </div><!-- /.app-principal -->
+  </div><!-- /.app-shell -->
 
+  <!-- type="module": layout.js usa import/export (módulos ES) -->
+  <script type="module" src="js/layout.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

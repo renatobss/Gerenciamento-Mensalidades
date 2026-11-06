@@ -16,6 +16,7 @@ require("./ambiente"); // garante que o .env já foi lido (DB_PATH pode estar l�
 const path = require("path");
 const fs = require("fs");
 const { DatabaseSync } = require("node:sqlite");
+const { executarMigracoes } = require("./migracoes");
 
 // Caminho padrão do banco: <raiz do projeto>/data/mensalidades.db
 const caminhoPadrao = path.join(__dirname, "..", "..", "data", "mensalidades.db");
@@ -61,5 +62,9 @@ db.exec(`
 // A coluna "senha" guarda o HASH da senha, nunca o texto digitado.
 // O usuário inicial e a migração de senhas antigas ficam em
 // src/config/inicializarDados.js (precisam de código assíncrono).
+
+// Evolui a estrutura do banco (novas colunas, tabelas e índices).
+// Veja src/config/migracoes.js.
+executarMigracoes(db);
 
 module.exports = db;

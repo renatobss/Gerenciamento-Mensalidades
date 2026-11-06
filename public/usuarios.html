@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários - Gerenciamento de Mensalidades</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="menuLateral" class="sidebar" data-test="menu-lateral"></aside>
+    <div class="sidebar-fundo"></div>
+
+    <div class="app-principal">
+      <div class="topo-mobile">
+        <button type="button" aria-label="Abrir menu" aria-expanded="false" data-test="btn-menu">☰</button>
+        <span>Mensalidades FC</span>
+      </div>
+
+      <main class="pagina">
+        <header class="pagina-cabecalho">
+          <div>
+            <p class="eyebrow">Administração</p>
+            <h1>Usuários</h1>
+            <p class="pagina-descricao">Gerencie quem acessa o sistema e o perfil de cada pessoa.</p>
+          </div>
+          <button type="button" id="btnNovoUsuario" class="btn" data-test="btn-novo-usuario">+ Novo usuário</button>
+        </header>
+
+        <section class="panel">
+          <!-- Pesquisa e filtro -->
+          <div class="barra-filtros">
+            <input
+              type="search"
+              id="pesquisaUsuario"
+              class="campo-pesquisa"
+              placeholder="Pesquisar por nome, e-mail ou usuário"
+              aria-label="Pesquisar usuários"
+              data-test="input-pesquisa-usuario"
+            >
+            <select id="filtroStatusUsuario" aria-label="Filtrar por situação" data-test="filtro-status-usuario">
+              <option value="ativo">Ativos</option>
+              <option value="inativo">Inativos</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+
+          <!-- Tabela. As linhas são criadas por js/usuarios.js -->
+          <div class="table-wrapper">
+            <table class="tabela tabela-responsiva" data-test="tabela-usuarios">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Usuário</th>
+                  <th>E-mail</th>
+                  <th>Perfil</th>
+                  <th>Situação</th>
+                  <th><span class="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody id="corpoTabelaUsuarios"></tbody>
+            </table>
+          </div>
+          <p id="semUsuarios" class="estado-vazio" data-test="mensagem-sem-usuarios" hidden>Nenhum usuário encontrado.</p>
+
+          <!-- Paginação -->
+          <nav class="paginacao" aria-label="Paginação" data-test="paginacao">
+            <span id="infoPaginacao" data-test="info-paginacao"></span>
+            <div class="paginacao-botoes">
+              <button type="button" id="btnPaginaAnterior" class="btn btn-secundario btn-pequeno" data-test="btn-pagina-anterior">Anterior</button>
+              <button type="button" id="btnProximaPagina" class="btn btn-secundario btn-pequeno" data-test="btn-proxima-pagina">Próxima</button>
+            </div>
+          </nav>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!--
+    Modal de cadastro/edição. <dialog> é nativo do HTML: showModal() abre por
+    cima da página e Esc fecha. O mesmo formulário serve para criar e editar.
+  -->
+  <dialog id="modalUsuario" class="modal" aria-labelledby="tituloModalUsuario" data-test="modal-usuario">
+    <form id="formUsuario" class="modal-conteudo" novalidate>
+      <h2 id="tituloModalUsuario" class="modal-titulo" data-test="titulo-modal-usuario">Novo usuário</h2>
+
+      <div id="erroFormularioUsuario" class="alerta alerta-erro" role="alert" data-test="mensagem-erro-formulario-usuario" hidden></div>
+
+      <div class="form-grade">
+        <div class="campo campo-largo">
+          <label for="nome">Nome completo <span class="obrigatorio">*</span></label>
+          <input type="text" id="nome" name="nomeCompleto" maxlength="100" autocomplete="off" required data-test="input-nome">
+          <p id="erro-nome" class="campo-erro" data-test="erro-nome" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="email">E-mail <span class="obrigatorio">*</span></label>
+          <input type="email" id="email" name="email" maxlength="150" autocomplete="off" required data-test="input-email">
+          <p id="erro-email" class="campo-erro" data-test="erro-email" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="usuarioLogin">Nome de usuário <span class="obrigatorio">*</span></label>
+          <input type="text" id="usuarioLogin" name="usuario" maxlength="30" autocomplete="off" required data-test="input-usuario">
+          <p id="erro-usuarioLogin" class="campo-erro" data-test="erro-usuario" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="senhaUsuario">Senha <span class="obrigatorio" data-campo="senha-obrigatoria">*</span></label>
+          <input type="password" id="senhaUsuario" name="senha" maxlength="128" autocomplete="new-password" data-test="input-senha">
+          <p id="dicaSenha" class="campo-dica">Mínimo de 8 caracteres, com letras e números.</p>
+          <p id="erro-senhaUsuario" class="campo-erro" data-test="erro-senha" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="confirmarSenha">Confirmar senha <span class="obrigatorio" data-campo="senha-obrigatoria">*</span></label>
+          <input type="password" id="confirmarSenha" name="confirmarSenha" maxlength="128" autocomplete="new-password" data-test="input-confirmar-senha">
+          <p id="erro-confirmarSenha" class="campo-erro" data-test="erro-confirmar-senha" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="perfil">Perfil de acesso <span class="obrigatorio">*</span></label>
+          <select id="perfil" name="perfil" required data-test="select-perfil">
+            <option value="">Selecione...</option>
+            <option value="admin">Administrador</option>
+            <option value="comum">Usuário comum</option>
+          </select>
+          <p id="erro-perfil" class="campo-erro" data-test="erro-perfil" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="status">Situação</label>
+          <select id="status" name="ativo" data-test="select-status">
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-acoes">
+        <button type="button" id="btnCancelarUsuario" class="btn btn-secundario" data-test="btn-cancelar-usuario">Cancelar</button>
+        <button type="submit" id="btnSalvarUsuario" class="btn" data-test="btn-salvar-usuario">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module" src="js/usuarios.js"></script>
+</body>
+</html>
