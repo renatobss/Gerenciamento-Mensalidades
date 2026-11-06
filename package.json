@@ -1,0 +1,17 @@
+{
+  "name": "gerenciamento-mensalidades",
+  "version": "1.0.0",
+  "description": "Aplicacao web didatica para gerenciamento de mensalidades.",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-session": "^1.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

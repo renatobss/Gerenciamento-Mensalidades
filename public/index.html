@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento de Mensalidades</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Tesouraria do grupo</p>
+      <h1>Mensalidades</h1>
+    </div>
+    <div class="total-box total-pendente">
+      <span>Total pendente</span>
+      <strong id="totalPendente">R$ 0,00</strong>
+    </div>
+    <div class="total-box">
+      <span>Total pago</span>
+      <strong id="totalPago">R$ 0,00</strong>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel form-panel" aria-labelledby="formTitle">
+      <h2 id="formTitle">Novo pagamento</h2>
+
+      <form id="pagamentoForm">
+        <input type="hidden" id="pagamentoId">
+
+        <label for="jogador">Jogador</label>
+        <input type="text" id="jogador" placeholder="Nome completo" required>
+
+        <label for="dataPagamento">Data do pagamento</label>
+        <input type="date" id="dataPagamento" required>
+
+        <label for="valor">Valor</label>
+        <input type="text" id="valor" inputmode="decimal" placeholder="0,00" required>
+
+        <label for="status">Status</label>
+        <select id="status">
+          <option value="Pago">Pago</option>
+          <option value="Pendente">Pendente</option>
+        </select>
+
+        <p id="mensagemErro" class="message error" role="alert"></p>
+
+        <div class="form-actions">
+          <button type="submit" id="salvarButton">Salvar</button>
+          <button type="button" id="cancelarButton" class="secondary" hidden>Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel list-panel" aria-labelledby="listTitle">
+      <div class="list-header">
+        <div>
+          <h2 id="listTitle">Historico</h2>
+          <p id="contadorPagamentos">Nenhum pagamento registrado</p>
+        </div>
+
+        <label class="filter-label" for="filtroMes">
+          Mes
+          <input type="month" id="filtroMes">
+        </label>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Jogador</th>
+              <th>Data</th>
+              <th>Valor</th>
+              <th>Status</th>
+              <th>Acoes</th>
+            </tr>
+          </thead>
+          <tbody id="pagamentosTabela"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
