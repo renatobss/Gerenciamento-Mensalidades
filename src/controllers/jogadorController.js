@@ -10,9 +10,9 @@ function listar(req, res) {
   res.json(jogadorService.listar(req.query));
 }
 
-/** GET /api/jogadores/opcoes → 200 com os jogadores ativos (para selects) */
+/** GET /api/jogadores/opcoes[?incluirInativos=1] → 200 com a lista para selects */
 function listarOpcoes(req, res) {
-  res.json(jogadorService.listarOpcoes());
+  res.json(jogadorService.listarOpcoes(req.query.incluirInativos === "1"));
 }
 
 /** GET /api/jogadores/:id → 200 com o jogador */

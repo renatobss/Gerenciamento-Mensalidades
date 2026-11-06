@@ -20,7 +20,7 @@
 const db = require("../config/database");
 const AppError = require("../utils/AppError");
 const jogadorService = require("./jogadorService");
-const { converterId } = require("../utils/consultas");
+const { converterId, lerPaginacao } = require("../utils/consultas");
 const { validarPagamento, STATUS_CANCELADO } = require("../validators/pagamentoValidator");
 
 /**
@@ -69,41 +69,77 @@ function obterExistente(idTexto) {
 }
 
 /**
- * Soma o valor dos pagamentos que têm determinado status.
- * Conceito: filter (seleciona itens) + reduce (acumula um resultado).
- * @param {object[]} pagamentos
- * @param {string} status
- * @returns {number}
- */
-function somarPorStatus(pagamentos, status) {
-  return pagamentos
-    .filter((pagamento) => pagamento.status === status)
-    .reduce((soma, pagamento) => soma + pagamento.valor, 0);
-}
-
-/**
- * Lista os pagamentos, opcionalmente filtrando por mês, e calcula os totais.
+ * Lista os pagamentos com filtros opcionais e calcula os totais.
  * Cancelados aparecem na lista (histórico), mas não entram nos totais.
  *
- * @param {string} [mes] - Mês no formato AAAA-MM. Vazio = todos.
- * @returns {{ pagamentos: object[], totalPago: number, totalPendente: number }}
+ * Paginação OPCIONAL: sem "pagina"/"limite", devolve todos os registros, como
+ * na versão original (compatibilidade). Com eles, devolve só a página pedida.
+ * Os totais são sempre calculados sobre TODOS os registros do filtro (via SUM
+ * no SQL), e não apenas sobre a página exibida.
+ *
+ * @param {object} [query] - req.query
+ * @param {string} [query.mes] - AAAA-MM
+ * @param {string} [query.jogador_id] - id do jogador
+ * @param {string} [query.status] - Pago | Pendente | Cancelado
+ * @param {string} [query.pagina]
+ * @param {string} [query.limite]
+ * @returns {{ pagamentos: object[], totalPago: number, totalPendente: number,
+ *             total: number, pagina: number, limite: number|null, totalPaginas: number }}
  */
-function listar(mes) {
-  const pagamentos = mes
-    ? db.prepare(`
-        SELECT ${COLUNAS} ${FROM}
-        WHERE substr(p.data_pagamento, 1, 7) = ?
-        ORDER BY p.data_pagamento DESC, p.id DESC
-      `).all(mes)
-    : db.prepare(`
-        SELECT ${COLUNAS} ${FROM}
-        ORDER BY p.data_pagamento DESC, p.id DESC
-      `).all();
+function listar(query = {}) {
+  const condicoes = [];
+  const parametros = [];
+
+  const mes = String(query.mes || "").trim();
+  if (mes) {
+    // substr(data, 1, 7) pega "AAAA-MM" de "AAAA-MM-DD".
+    condicoes.push("substr(p.data_pagamento, 1, 7) = ?");
+    parametros.push(mes);
+  }
+
+  const jogadorId = converterId(query.jogador_id);
+  if (jogadorId) {
+    condicoes.push("p.jogador_id = ?");
+    parametros.push(jogadorId);
+  }
+
+  const status = String(query.status || "").trim();
+  if (["Pago", "Pendente", STATUS_CANCELADO].includes(status)) {
+    condicoes.push("p.status = ?");
+    parametros.push(status);
+  }
+
+  const where = condicoes.length ? `WHERE ${condicoes.join(" AND ")}` : "";
+
+  // Totais e contagem em UMA consulta: SUM com CASE soma só as linhas do status desejado.
+  const resumo = db.prepare(`
+    SELECT
+      COUNT(*) AS total,
+      coalesce(SUM(CASE WHEN p.status = 'Pago' THEN p.valor END), 0) AS totalPago,
+      coalesce(SUM(CASE WHEN p.status = 'Pendente' THEN p.valor END), 0) AS totalPendente
+    ${FROM} ${where}
+  `).get(...parametros);
+
+  const paginar = query.pagina !== undefined || query.limite !== undefined;
+  const { pagina, limite, offset } = lerPaginacao(query);
+
+  const sqlLista = `
+    SELECT ${COLUNAS} ${FROM} ${where}
+    ORDER BY p.data_pagamento DESC, p.id DESC
+    ${paginar ? "LIMIT ? OFFSET ?" : ""}
+  `;
+  const pagamentos = paginar
+    ? db.prepare(sqlLista).all(...parametros, limite, offset)
+    : db.prepare(sqlLista).all(...parametros);
 
   return {
     pagamentos,
-    totalPago: somarPorStatus(pagamentos, "Pago"),
-    totalPendente: somarPorStatus(pagamentos, "Pendente")
+    totalPago: resumo.totalPago,
+    totalPendente: resumo.totalPendente,
+    total: resumo.total,
+    pagina: paginar ? pagina : 1,
+    limite: paginar ? limite : null,
+    totalPaginas: paginar ? Math.max(1, Math.ceil(resumo.total / limite)) : 1
   };
 }
 

@@ -10,10 +10,12 @@
  */
 const pagamentoService = require("../services/pagamentoService");
 
-/** GET /api/pagamentos?mes=AAAA-MM → 200 com { pagamentos, totalPago, totalPendente } */
+/**
+ * GET /api/pagamentos?mes=AAAA-MM&jogador_id=&status=&pagina=&limite=
+ * → 200 com { pagamentos, totalPago, totalPendente, total, pagina, limite, totalPaginas }
+ */
 function listar(req, res) {
-  const mes = String(req.query.mes || "").trim();
-  res.json(pagamentoService.listar(mes));
+  res.json(pagamentoService.listar(req.query));
 }
 
 /** POST /api/pagamentos → 201 (Created) com o pagamento criado */

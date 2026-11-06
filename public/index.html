@@ -3,109 +3,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gerenciamento de Mensalidades</title>
+  <title>Painel - Gerenciamento de Mensalidades</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!--
-    Estrutura padrão das páginas internas:
-    - aside#menuLateral: menu lateral, desenhado por js/layout.js conforme o perfil;
-    - .topo-mobile: barra com o botão "hambúrguer", visível só no celular;
-    - .app-principal: conteúdo da página.
-  -->
   <div class="app-shell">
-  <aside id="menuLateral" class="sidebar" data-test="menu-lateral"></aside>
-  <div class="sidebar-fundo"></div>
+    <aside id="menuLateral" class="sidebar" data-test="menu-lateral"></aside>
+    <div class="sidebar-fundo"></div>
 
-  <div class="app-principal">
-  <div class="topo-mobile">
-    <button type="button" aria-label="Abrir menu" aria-expanded="false" data-test="btn-menu">☰</button>
-    <span>Mensalidades FC</span>
+    <div class="app-principal">
+      <div class="topo-mobile">
+        <button type="button" aria-label="Abrir menu" aria-expanded="false" data-test="btn-menu">☰</button>
+        <span>Mensalidades FC</span>
+      </div>
+
+      <main class="pagina">
+        <header class="pagina-cabecalho">
+          <div>
+            <p class="eyebrow">Visão geral</p>
+            <h1>Painel</h1>
+            <p class="pagina-descricao">Como estão as mensalidades do grupo no mês escolhido.</p>
+          </div>
+          <!-- Filtro único, acima de tudo: todos os números abaixo se referem a este mês -->
+          <label class="filtro-mes">
+            <span>Mês</span>
+            <input type="month" id="filtroMesDashboard" data-test="filtro-mes-dashboard">
+          </label>
+        </header>
+
+        <!-- Conteúdo fica semitransparente enquanto recarrega (sem "piscar" a tela) -->
+        <div id="conteudoDashboard" class="dashboard">
+
+          <!-- Destaque: arrecadação do mês contra o previsto -->
+          <section class="panel cartao-destaque" aria-labelledby="tituloArrecadacao">
+            <div>
+              <h2 id="tituloArrecadacao" class="cartao-rotulo">Arrecadado no mês</h2>
+              <p class="valor-destaque" data-test="valor-arrecadado-mes">R$ 0,00</p>
+              <p class="texto-secundario" data-test="texto-previsto-mes">de R$ 0,00 previstos</p>
+            </div>
+            <div class="medidor-bloco">
+              <div class="medidor" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                   aria-label="Percentual arrecadado do previsto" data-test="medidor-arrecadacao">
+                <div class="medidor-preenchimento" id="medidorPreenchimento"></div>
+              </div>
+              <p class="medidor-legenda"><strong data-test="percentual-arrecadado">0%</strong> do previsto</p>
+            </div>
+          </section>
+
+          <!-- Linha de indicadores -->
+          <section class="indicadores" aria-label="Indicadores">
+            <article class="panel indicador" data-test="card-jogadores-ativos">
+              <h3 class="cartao-rotulo">Jogadores ativos</h3>
+              <p class="indicador-valor" data-campo="valor">0</p>
+            </article>
+            <article class="panel indicador" data-test="card-pendente-mes">
+              <h3 class="cartao-rotulo">Pendente no mês</h3>
+              <p class="indicador-valor" data-campo="valor">R$ 0,00</p>
+              <p class="texto-secundario" data-campo="detalhe"></p>
+            </article>
+            <article class="panel indicador" data-test="card-sem-lancamento">
+              <h3 class="cartao-rotulo">Sem lançamento no mês</h3>
+              <p class="indicador-valor" data-campo="valor">0</p>
+              <p class="texto-secundario">jogador(es) ativo(s)</p>
+            </article>
+            <article class="panel indicador" data-test="card-pendente-geral">
+              <h3 class="cartao-rotulo">Pendente (total geral)</h3>
+              <p class="indicador-valor" data-campo="valor">R$ 0,00</p>
+              <p class="texto-secundario">todas as datas</p>
+            </article>
+          </section>
+
+          <!-- Gráfico de evolução (uma série, uma cor) -->
+          <section class="panel cartao-grafico" aria-labelledby="tituloEvolucao">
+            <div class="cartao-cabecalho">
+              <h2 id="tituloEvolucao" class="cartao-titulo">Valor pago nos últimos 6 meses</h2>
+            </div>
+            <div class="grafico-colunas" id="graficoEvolucao" data-test="grafico-evolucao"></div>
+            <div class="grafico-dica" id="dicaGrafico" role="tooltip" hidden></div>
+            <!-- Tabela de apoio: os mesmos valores, acessíveis sem passar o mouse -->
+            <details class="grafico-tabela">
+              <summary data-test="btn-ver-tabela-evolucao">Ver valores em tabela</summary>
+              <table class="tabela" data-test="tabela-evolucao">
+                <thead><tr><th>Mês</th><th>Valor pago</th></tr></thead>
+                <tbody id="corpoTabelaEvolucao"></tbody>
+              </table>
+            </details>
+          </section>
+
+          <!-- Listas de acompanhamento -->
+          <div class="dashboard-listas">
+            <section class="panel cartao-lista" aria-labelledby="tituloSemLancamento">
+              <h2 id="tituloSemLancamento" class="cartao-titulo">Sem lançamento no mês</h2>
+              <ul class="lista" id="listaSemLancamento" data-test="lista-sem-lancamento"></ul>
+              <p class="estado-vazio" id="semLancamentoVazio" data-test="mensagem-todos-lancados" hidden>
+                Todos os jogadores ativos têm lançamento neste mês. 🎉
+              </p>
+            </section>
+
+            <section class="panel cartao-lista" aria-labelledby="tituloPendencias">
+              <h2 id="tituloPendencias" class="cartao-titulo">Maiores pendências</h2>
+              <ul class="lista" id="listaPendencias" data-test="lista-maiores-pendencias"></ul>
+              <p class="estado-vazio" id="pendenciasVazio" data-test="mensagem-sem-pendencias" hidden>Nenhuma pendência. 👏</p>
+            </section>
+
+            <section class="panel cartao-lista" aria-labelledby="tituloUltimos">
+              <h2 id="tituloUltimos" class="cartao-titulo">Últimos lançamentos</h2>
+              <ul class="lista" id="listaUltimos" data-test="lista-ultimos-pagamentos"></ul>
+              <p class="estado-vazio" id="ultimosVazio" hidden>Nenhum lançamento ainda.</p>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
   </div>
 
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">Tesouraria do grupo</p>
-      <h1>Mensalidades</h1>
-    </div>
-    <div class="total-box total-pendente">
-      <span>Total pendente</span>
-      <strong id="totalPendente">R$ 0,00</strong>
-    </div>
-    <div class="total-box">
-      <span>Total pago</span>
-      <strong id="totalPago">R$ 0,00</strong>
-    </div>
-  </header>
-
-  <main class="layout">
-    <section class="panel form-panel" aria-labelledby="formTitle">
-      <h2 id="formTitle">Novo pagamento</h2>
-
-      <form id="pagamentoForm">
-        <input type="hidden" id="pagamentoId">
-
-        <label for="jogador">Jogador</label>
-        <!-- Lista preenchida por app.js com os jogadores ATIVOS (GET /api/jogadores/opcoes) -->
-        <select id="jogador" required>
-          <option value="">Selecione o jogador...</option>
-        </select>
-
-        <label for="dataPagamento">Data do pagamento</label>
-        <input type="date" id="dataPagamento" required>
-
-        <label for="valor">Valor</label>
-        <input type="text" id="valor" inputmode="decimal" placeholder="0,00" required>
-
-        <label for="status">Status</label>
-        <select id="status">
-          <option value="Pago">Pago</option>
-          <option value="Pendente">Pendente</option>
-        </select>
-
-        <p id="mensagemErro" class="message error" role="alert"></p>
-
-        <div class="form-actions">
-          <button type="submit" id="salvarButton">Salvar</button>
-          <button type="button" id="cancelarButton" class="secondary" hidden>Cancelar</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="panel list-panel" aria-labelledby="listTitle">
-      <div class="list-header">
-        <div>
-          <h2 id="listTitle">Historico</h2>
-          <p id="contadorPagamentos">Nenhum pagamento registrado</p>
-        </div>
-
-        <label class="filter-label" for="filtroMes">
-          Mes
-          <input type="month" id="filtroMes">
-        </label>
-      </div>
-
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Jogador</th>
-              <th>Data</th>
-              <th>Valor</th>
-              <th>Status</th>
-              <th>Acoes</th>
-            </tr>
-          </thead>
-          <tbody id="pagamentosTabela"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-  </div><!-- /.app-principal -->
-  </div><!-- /.app-shell -->
-
-  <!-- type="module": layout.js usa import/export (módulos ES) -->
   <script type="module" src="js/layout.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>

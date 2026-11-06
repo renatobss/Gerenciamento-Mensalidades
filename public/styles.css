@@ -1098,3 +1098,326 @@ tr.linha-cancelada td {
     content: none;
   }
 }
+
+/* ==========================================================================
+   Painel (dashboard)
+   Cor de dados: --grafico (#2f8a5d), validada contra o fundo branco
+   (faixa de luminosidade, saturação mínima e contraste >= 3:1).
+   ========================================================================== */
+
+:root {
+  --grafico: #2f8a5d;
+  --grafico-trilho: #d9efe2; /* tom mais claro da MESMA cor, para o fundo do medidor */
+  --grade: #e8eee9;          /* linhas de apoio discretas */
+}
+
+.filtro-mes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.filtro-mes input {
+  min-width: 190px;
+  margin: 0;
+}
+
+.dashboard {
+  display: grid;
+  gap: 20px;
+  transition: opacity 0.15s;
+}
+
+/* Recarregando: mantém o conteúdo, só mais apagado (sem "pular" a tela) */
+.dashboard.recarregando {
+  opacity: 0.55;
+}
+
+.cartao-rotulo {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.cartao-titulo {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+/* ---- Destaque + medidor ---- */
+.cartao-destaque {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 24px;
+  padding: 24px 26px;
+}
+
+.valor-destaque {
+  margin: 0 0 4px;
+  font-size: clamp(2.6rem, 6vw, 3.4rem); /* >= 48px: o número principal do painel */
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.medidor {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--grafico-trilho);
+}
+
+.medidor-preenchimento {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--grafico);
+  transition: width 0.4s ease;
+}
+
+.medidor-legenda {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.medidor-legenda strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+/* ---- Linha de indicadores ---- */
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.indicador {
+  padding: 18px 20px;
+}
+
+.indicador-valor {
+  margin: 0 0 2px;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.indicador .texto-secundario {
+  margin: 0;
+}
+
+/* ---- Gráfico de colunas ---- */
+.cartao-grafico {
+  position: relative; /* referência para posicionar o tooltip */
+  padding: 22px 24px 16px;
+}
+
+.grafico-colunas {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  height: 220px;
+  border-bottom: 1px solid var(--grade); /* linha de base */
+}
+
+.grafico-item {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  cursor: default;
+}
+
+.grafico-item:hover,
+.grafico-item:focus-visible {
+  background: #f6f9f7; /* a área inteira responde ao hover, não só a barra */
+}
+
+.grafico-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--grafico);
+}
+
+.grafico-area {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 22px; /* espaço para o rótulo de valor */
+}
+
+.grafico-coluna {
+  width: 24px;                 /* coluna fina: no máximo 24px */
+  border-radius: 4px 4px 0 0;  /* ponta arredondada, base reta */
+  background: var(--grafico);
+  opacity: 0.55;               /* meses de contexto mais suaves... */
+}
+
+.grafico-coluna.selecionada {
+  opacity: 1;                  /* ...e o mês escolhido em destaque */
+}
+
+.grafico-valor {
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.grafico-rotulo {
+  padding: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.grafico-dica {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #17231b;
+  color: #ffffff;
+  font-size: 0.85rem;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% + 18px));
+  white-space: nowrap;
+}
+
+.grafico-dica span {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.grafico-tabela {
+  margin-top: 14px;
+}
+
+.grafico-tabela summary {
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.grafico-tabela table {
+  margin-top: 10px;
+}
+
+/* ---- Listas ---- */
+.dashboard-listas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cartao-lista {
+  padding: 20px 20px 10px;
+}
+
+.lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.lista-item > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lista-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lista-valor {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cartao-lista .estado-vazio {
+  padding: 18px 0;
+}
+
+/* ---- Cards de resumo da tela de mensalidades ---- */
+.resumo-pagamentos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1100px) {
+  .indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-listas {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .cartao-destaque {
+    grid-template-columns: 1fr;
+  }
+
+  .indicadores,
+  .resumo-pagamentos {
+    grid-template-columns: 1fr;
+  }
+
+  .grafico-coluna {
+    width: 16px;
+  }
+}
+
+/* ---- Filtros com rótulo (tela de mensalidades) ---- */
+.filtro-campo {
+  display: flex;
+  flex: 0 0 180px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.filtro-campo.filtro-largo {
+  flex: 1 1 220px;
+}
+
+.barra-filtros .filtro-campo select,
+.barra-filtros .filtro-campo input {
+  flex: none;
+  width: 100%;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.filtro-botao {
+  align-self: flex-end;
+  min-height: 44px;
+}
+
+.modal-medio {
+  width: min(520px, calc(100vw - 32px));
+}

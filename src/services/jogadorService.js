@@ -125,17 +125,22 @@ function listar(query = {}) {
 }
 
 /**
- * Lista enxuta dos jogadores ATIVOS, sem paginação.
- * Usada para preencher o campo "Jogador" do formulário de pagamentos.
- * @returns {{ id: number, nomeCompleto: string, valorMensalidade: number }[]}
+ * Lista enxuta de jogadores, sem paginação, para preencher selects.
+ * - Formulário de pagamento: só ATIVOS (padrão).
+ * - Filtro da listagem: todos (incluirInativos = true), para consultar o histórico.
+ * CPF e data de entrada ajudam a diferenciar jogadores com o mesmo nome.
+ *
+ * @param {boolean} [incluirInativos=false]
+ * @returns {object[]}
  */
-function listarOpcoes() {
+function listarOpcoes(incluirInativos = false) {
   return db.prepare(`
-    SELECT id, nome_completo AS nomeCompleto, valor_mensalidade AS valorMensalidade
+    SELECT id, nome_completo AS nomeCompleto, valor_mensalidade AS valorMensalidade,
+           cpf, data_entrada AS dataEntrada, ativo
     FROM jogadores
-    WHERE ativo = 1
+    ${incluirInativos ? "" : "WHERE ativo = 1"}
     ORDER BY lower(nome_completo)
-  `).all();
+  `).all().map(paraApi);
 }
 
 /**

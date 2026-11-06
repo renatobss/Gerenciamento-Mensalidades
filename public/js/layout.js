@@ -21,7 +21,8 @@ import { api } from "./api.js";
  * "dataTest" segue o padrão: menu-<nome>.
  */
 const ITENS_MENU = [
-  { href: "/", rotulo: "Mensalidades", icone: "💰", dataTest: "menu-mensalidades", perfis: [], paginas: ["/", "/index.html"] },
+  { href: "/", rotulo: "Painel", icone: "📊", dataTest: "menu-painel", perfis: [], paginas: ["/", "/index.html"] },
+  { href: "/mensalidades.html", rotulo: "Mensalidades", icone: "💰", dataTest: "menu-mensalidades", perfis: [], paginas: ["/mensalidades.html"] },
   { href: "/jogadores.html", rotulo: "Jogadores", icone: "👟", dataTest: "menu-jogadores", perfis: [], paginas: ["/jogadores.html"] },
   { href: "/usuarios.html", rotulo: "Usuários", icone: "👤", dataTest: "menu-usuarios", perfis: ["admin"], paginas: ["/usuarios.html"] }
 ];

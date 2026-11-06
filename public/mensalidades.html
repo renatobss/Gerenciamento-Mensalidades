@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mensalidades - Gerenciamento de Mensalidades</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="menuLateral" class="sidebar" data-test="menu-lateral"></aside>
+    <div class="sidebar-fundo"></div>
+
+    <div class="app-principal">
+      <div class="topo-mobile">
+        <button type="button" aria-label="Abrir menu" aria-expanded="false" data-test="btn-menu">☰</button>
+        <span>Mensalidades FC</span>
+      </div>
+
+      <main class="pagina">
+        <header class="pagina-cabecalho">
+          <div>
+            <p class="eyebrow">Tesouraria do grupo</p>
+            <h1>Mensalidades</h1>
+            <p class="pagina-descricao">Lançamentos de pagamentos e pendências dos jogadores.</p>
+          </div>
+          <button type="button" id="btnNovoPagamento" class="btn" data-test="btn-novo-pagamento">+ Novo pagamento</button>
+        </header>
+
+        <!-- Resumo: sempre calculado sobre os filtros aplicados -->
+        <section class="resumo-pagamentos" aria-label="Resumo dos filtros">
+          <article class="panel indicador" data-test="card-total-pago">
+            <h2 class="cartao-rotulo">Total pago</h2>
+            <p class="indicador-valor" id="totalPago">R$ 0,00</p>
+          </article>
+          <article class="panel indicador" data-test="card-total-pendente">
+            <h2 class="cartao-rotulo">Total pendente</h2>
+            <p class="indicador-valor" id="totalPendente">R$ 0,00</p>
+          </article>
+          <article class="panel indicador" data-test="card-quantidade-pagamentos">
+            <h2 class="cartao-rotulo">Lançamentos encontrados</h2>
+            <p class="indicador-valor" id="quantidadePagamentos">0</p>
+            <p class="texto-secundario">cancelados aparecem, mas não somam</p>
+          </article>
+        </section>
+
+        <section class="panel">
+          <div class="barra-filtros">
+            <label class="filtro-campo">
+              <span>Mês</span>
+              <input type="month" id="filtroMes" data-test="filtro-mes">
+            </label>
+            <label class="filtro-campo filtro-largo">
+              <span>Jogador</span>
+              <select id="filtroJogador" data-test="filtro-jogador">
+                <option value="">Todos os jogadores</option>
+              </select>
+            </label>
+            <label class="filtro-campo">
+              <span>Status</span>
+              <select id="filtroStatus" data-test="filtro-status-pagamento">
+                <option value="">Todos</option>
+                <option value="Pago">Pago</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Cancelado">Cancelado</option>
+              </select>
+            </label>
+            <button type="button" id="btnLimparFiltros" class="btn btn-secundario filtro-botao" data-test="btn-limpar-filtros">Limpar filtros</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="tabela tabela-responsiva" data-test="tabela-pagamentos">
+              <thead>
+                <tr>
+                  <th>Jogador</th>
+                  <th>Data</th>
+                  <th>Valor</th>
+                  <th>Status</th>
+                  <th><span class="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody id="corpoTabelaPagamentos"></tbody>
+            </table>
+          </div>
+          <p id="semPagamentos" class="estado-vazio" data-test="mensagem-sem-pagamentos" hidden>Nenhum pagamento encontrado para os filtros escolhidos.</p>
+
+          <nav class="paginacao" aria-label="Paginação" data-test="paginacao">
+            <span id="infoPaginacao" data-test="info-paginacao"></span>
+            <div class="paginacao-botoes">
+              <button type="button" id="btnPaginaAnterior" class="btn btn-secundario btn-pequeno" data-test="btn-pagina-anterior">Anterior</button>
+              <button type="button" id="btnProximaPagina" class="btn btn-secundario btn-pequeno" data-test="btn-proxima-pagina">Próxima</button>
+            </div>
+          </nav>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal de lançamento/edição de pagamento -->
+  <dialog id="modalPagamento" class="modal modal-medio" aria-labelledby="tituloModalPagamento" data-test="modal-pagamento">
+    <form id="formPagamento" class="modal-conteudo" novalidate>
+      <h2 id="tituloModalPagamento" class="modal-titulo" data-test="titulo-modal-pagamento">Novo pagamento</h2>
+
+      <div id="erroFormularioPagamento" class="alerta alerta-erro" role="alert" data-test="mensagem-erro-formulario-pagamento" hidden></div>
+
+      <div class="form-grade">
+        <div class="campo campo-largo">
+          <label for="jogadorPagamento">Jogador <span class="obrigatorio">*</span></label>
+          <!-- Somente jogadores ATIVOS (GET /api/jogadores/opcoes) -->
+          <select id="jogadorPagamento" name="jogador_id" required data-test="select-jogador-pagamento">
+            <option value="">Selecione o jogador...</option>
+          </select>
+          <p id="erro-jogadorPagamento" class="campo-erro" data-test="erro-jogador-pagamento" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="dataPagamento">Data <span class="obrigatorio">*</span></label>
+          <input type="date" id="dataPagamento" name="data_pagamento" required data-test="input-data-pagamento">
+          <p id="erro-dataPagamento" class="campo-erro" data-test="erro-data-pagamento" hidden></p>
+        </div>
+
+        <div class="campo">
+          <label for="valorPagamento">Valor (R$) <span class="obrigatorio">*</span></label>
+          <input type="text" id="valorPagamento" name="valor" inputmode="decimal" placeholder="0,00" required data-test="input-valor-pagamento">
+          <p id="erro-valorPagamento" class="campo-erro" data-test="erro-valor-pagamento" hidden></p>
+        </div>
+
+        <div class="campo campo-largo">
+          <label for="statusPagamento">Status</label>
+          <select id="statusPagamento" name="status" data-test="select-status-pagamento">
+            <option value="Pago">Pago</option>
+            <option value="Pendente">Pendente</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-acoes">
+        <button type="button" id="btnFecharModalPagamento" class="btn btn-secundario" data-test="btn-fechar-modal-pagamento">Voltar</button>
+        <button type="submit" id="btnSalvarPagamento" class="btn" data-test="btn-salvar-pagamento">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/layout.js"></script>
+  <script type="module" src="js/mensalidades.js"></script>
+</body>
+</html>
