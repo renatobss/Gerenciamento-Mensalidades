@@ -33,6 +33,7 @@ parte faz, *por que* foi feita assim e *como* se conecta com o resto do sistema.
 | Senhas | **crypto.scrypt** (nativo do Node) | Hash seguro sem dependência extra |
 | Frontend | **HTML + CSS + JavaScript puro** (módulos ES) | Sem framework e sem etapa de build, ideal para aprender a base |
 | Testes | **Cypress 16** | Testes E2E (pela tela) e de API no mesmo projeto |
+| Documentação da API | **OpenAPI 3** + **swagger-ui-express** + **yaml** | Contrato da API legível e testável pelo navegador |
 
 ## Como executar
 
@@ -159,6 +160,7 @@ no middleware `tratadorErros`.
 ├── cypress/                   testes automatizados (e2e/ e e2e/api/)
 ├── scripts/                   servidor de testes e orquestrador da suíte
 ├── docs/seletores-data-test.md  inventário dos seletores para automação
+├── docs/openapi.yaml          contrato da API (Swagger / OpenAPI 3)
 └── data/                      banco SQLite e backups (fora do Git)
 ```
 
@@ -166,6 +168,13 @@ no middleware `tratadorErros`.
 
 Todas as rotas, exceto login e logout, exigem sessão (**401** sem login).
 Erros sempre no formato `{ "erros": ["..."] }`.
+
+> **Swagger:** com o servidor ligado e **logado**, acesse
+> [http://localhost:3001/api-docs](http://localhost:3001/api-docs) para ver e testar
+> todas as rotas ("Try it out" usa o cookie da sua sessão). O contrato fica em
+> [`docs/openapi.yaml`](docs/openapi.yaml) (no Postman: *Import → arquivo* gera uma coleção
+> com todas as rotas), e a versão JSON em `/api-docs/openapi.json`. Ao criar ou alterar
+> uma rota, atualize o YAML.
 
 ### Autenticação
 

@@ -4,7 +4,7 @@
   "description": "Aplicacao web didatica para gerenciamento de mensalidades.",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
+    "dev": "nodemon --ext js,yaml src/server.js",
     "start": "node src/server.js",
     "test:servidor": "node scripts/servidor-teste.js",
     "cy:open": "cypress open",
@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "express": "^4.21.2",
-    "express-session": "^1.19.0"
+    "express-session": "^1.19.0",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "cypress": "^16.2.1",

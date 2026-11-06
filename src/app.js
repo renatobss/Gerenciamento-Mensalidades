@@ -33,6 +33,7 @@ const { PERFIS } = require("./config/perfis");
 const { protegerRecursos } = require("./middlewares/autenticacao");
 const { exigirPerfil } = require("./middlewares/autorizacao");
 const { rotaApiNaoEncontrada, tratadorErros } = require("./middlewares/tratadorErros");
+const { criarRotasDocumentacao } = require("./config/swagger");
 
 const app = express();
 const PASTA_PUBLICA = path.join(__dirname, "..", "public");
@@ -73,6 +74,9 @@ app.use("/api/pagamentos", pagamentoRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/jogadores", jogadorRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+
+// 5.1 Documentação Swagger (docs/openapi.yaml), também só para quem está logado.
+app.use("/api-docs", criarRotasDocumentacao());
 
 // 6. Páginas restritas por perfil (verificadas ANTES de servir o arquivo).
 //    A API de usuários já é protegida; isto evita que um usuário comum veja

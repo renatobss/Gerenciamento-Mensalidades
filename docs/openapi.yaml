@@ -1,0 +1,1207 @@
+# =============================================================================
+# ESPECIFICAÇÃO OPENAPI (SWAGGER) DA API DE MENSALIDADES
+# -----------------------------------------------------------------------------
+# OpenAPI é um padrão para DESCREVER uma API REST em um arquivo (YAML ou JSON):
+# quais URLs existem, o que cada uma recebe, o que devolve e quais erros podem
+# acontecer. A partir deste arquivo, ferramentas geram documentação interativa
+# (Swagger UI), coleções do Postman, clientes e até testes de contrato.
+#
+# Onde ver: com o servidor ligado e logado, acesse http://localhost:3001/api-docs
+#
+# Estrutura do arquivo:
+#   info        → nome, versão e descrição da API
+#   servers     → endereço base das chamadas
+#   tags        → agrupamento das rotas na tela
+#   paths       → as rotas (URL + método HTTP)
+#   components  → peças reutilizáveis: schemas (formatos de dados),
+#                 parameters, responses e securitySchemes (autenticação)
+#
+# "$ref" aponta para uma peça de "components", evitando repetir a mesma
+# definição em vários lugares (igual a uma função reaproveitada no código).
+#
+# IMPORTANTE: ao criar ou mudar uma rota em src/routes, atualize este arquivo.
+# =============================================================================
+openapi: 3.0.3
+
+info:
+  title: API de Gerenciamento de Mensalidades
+  version: 1.0.0
+  description: |
+    API do sistema de mensalidades do grupo de futebol.
+
+    ## Autenticação
+    A API usa **sessão com cookie** (`connect.sid`), e não token.
+    1. Chame `POST /api/login` com usuário e senha.
+    2. O servidor devolve o cookie `connect.sid` (httpOnly).
+    3. O navegador (ou o Postman/Cypress) reenvia o cookie em toda chamada.
+
+    Nesta tela, como você já está logado no sistema, o botão **Try it out**
+    usa automaticamente o cookie da sua sessão.
+
+    ## Perfis
+    - **admin**: acesso total, incluindo `/api/usuarios`.
+    - **comum**: painel, mensalidades e jogadores.
+
+    ## Formato de erro
+    Todo erro devolve o mesmo formato: `{ "erros": ["mensagem", "..."] }`.
+
+    | Status | Significado |
+    |--------|-------------|
+    | 400 | Dados inválidos (validação) |
+    | 401 | Não está logado / sessão expirada |
+    | 403 | Logado, mas sem permissão (perfil) ou usuário inativo no login |
+    | 404 | Registro ou rota não encontrada |
+    | 409 | Duplicidade (CPF, e-mail ou usuário já cadastrado) |
+    | 429 | Muitas tentativas de login (bloqueio temporário) |
+    | 500 | Erro interno (detalhe só no console do servidor) |
+
+    ## Exclusão lógica
+    Nada é apagado: jogadores e usuários são **inativados**, e pagamentos são
+    **cancelados**, preservando o histórico.
+
+servers:
+  - url: /
+    description: Mesmo servidor que está exibindo esta documentação
+
+tags:
+  - name: Autenticação
+    description: Login, logout e dados da sessão
+  - name: Painel
+    description: Indicadores do dashboard
+  - name: Pagamentos
+    description: Lançamentos de mensalidades
+  - name: Jogadores
+    description: Cadastro de jogadores
+  - name: Usuários
+    description: Cadastro de usuários do sistema (somente administrador)
+
+# Segurança PADRÃO de todas as rotas: exige o cookie de sessão.
+# As rotas públicas (login/logout) sobrescrevem com "security: []".
+security:
+  - cookieSessao: []
+
+paths:
+  # ---------------------------------------------------------------------------
+  # AUTENTICAÇÃO
+  # ---------------------------------------------------------------------------
+  /api/login:
+    post:
+      tags: [Autenticação]
+      summary: Faz login e cria a sessão
+      description: |
+        Aceita o **nome de usuário** ou o **e-mail**, sem diferenciar maiúsculas.
+        Após 5 tentativas erradas (por IP + usuário), o login fica bloqueado por
+        15 minutos (status 429). Um usuário inativo só recebe 403 se a senha estiver
+        correta, o que impede descobrir quais contas existem.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginEntrada"
+            example:
+              usuario: admin
+              senha: admin123
+      responses:
+        "200":
+          description: Login bem-sucedido. O cookie `connect.sid` vem no cabeçalho `Set-Cookie`.
+          headers:
+            Set-Cookie:
+              description: Cookie da sessão (httpOnly, SameSite=Lax).
+              schema:
+                type: string
+                example: connect.sid=s%3Aabc123...; Path=/; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResposta"
+        "400":
+          description: Usuário/senha não informados ou grandes demais.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Usuário e senha são obrigatórios."]
+        "401":
+          description: Credenciais inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Usuário ou senha inválidos."]
+        "403":
+          description: Senha correta, mas o usuário está inativo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Usuário inativo. Procure um administrador do sistema."]
+        "429":
+          description: Bloqueado por excesso de tentativas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Muitas tentativas de login sem sucesso. Tente novamente em 15 minuto(s)."]
+
+  /api/logout:
+    get:
+      tags: [Autenticação]
+      summary: Encerra a sessão
+      description: |
+        Destrói a sessão no servidor, apaga o cookie e **redireciona** para a
+        tela de login. Atenção: executar aqui pelo "Try it out" encerra a sua sessão!
+      operationId: logout
+      security: []
+      responses:
+        "302":
+          description: Redireciona para `/login.html`.
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /login.html
+
+  /api/sessao:
+    get:
+      tags: [Autenticação]
+      summary: Dados do usuário logado
+      description: Usado pelo frontend para mostrar o nome no menu e as opções do perfil.
+      operationId: obterSessao
+      responses:
+        "200":
+          description: Usuário da sessão atual.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  usuario:
+                    $ref: "#/components/schemas/Usuario"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+
+  # ---------------------------------------------------------------------------
+  # PAINEL
+  # ---------------------------------------------------------------------------
+  /api/dashboard:
+    get:
+      tags: [Painel]
+      summary: Indicadores do painel de um mês
+      description: |
+        Todos os números do painel em uma só resposta. O mês de um pagamento é o
+        mês da sua `data_pagamento`. Pagamentos cancelados nunca entram nos números.
+      operationId: obterDashboard
+      parameters:
+        - name: mes
+          in: query
+          description: Mês no formato AAAA-MM. Vazio ou inválido = mês atual.
+          schema:
+            type: string
+            pattern: "^\\d{4}-(0[1-9]|1[0-2])$"
+            example: "2026-11"
+      responses:
+        "200":
+          description: Indicadores do mês.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+
+  # ---------------------------------------------------------------------------
+  # PAGAMENTOS
+  # ---------------------------------------------------------------------------
+  /api/pagamentos:
+    get:
+      tags: [Pagamentos]
+      summary: Lista pagamentos com filtros e totais
+      description: |
+        Os filtros podem ser combinados. A paginação é **opcional**: sem `pagina`
+        e `limite`, devolve todos os registros (e `limite` vem `null`).
+        Os totais consideram **todos** os registros do filtro, não só a página,
+        e não incluem os cancelados.
+      operationId: listarPagamentos
+      parameters:
+        - name: mes
+          in: query
+          description: Mês da data de pagamento (AAAA-MM).
+          schema:
+            type: string
+            example: "2026-11"
+        - name: jogador_id
+          in: query
+          description: Id do jogador.
+          schema:
+            type: integer
+            minimum: 1
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/StatusPagamento"
+        - $ref: "#/components/parameters/Pagina"
+        - $ref: "#/components/parameters/Limite"
+      responses:
+        "200":
+          description: Lista de pagamentos e totais.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListaPagamentos"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+    post:
+      tags: [Pagamentos]
+      summary: Lança um pagamento
+      description: O jogador precisa existir e estar **ativo**.
+      operationId: criarPagamento
+      requestBody:
+        $ref: "#/components/requestBodies/PagamentoEntrada"
+      responses:
+        "201":
+          description: Pagamento criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pagamento"
+        "400":
+          description: Dados inválidos ou jogador inativo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Selecione o jogador.", "Informe um valor maior que zero."]
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          description: Jogador não encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Jogador não encontrado."]
+
+  /api/pagamentos/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [Pagamentos]
+      summary: Edita um pagamento
+      description: |
+        Pagamento **cancelado** não pode ser editado. Na edição, o jogador já
+        vinculado pode continuar, mesmo que tenha sido inativado depois.
+      operationId: atualizarPagamento
+      requestBody:
+        $ref: "#/components/requestBodies/PagamentoEntrada"
+      responses:
+        "200":
+          description: Pagamento atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pagamento"
+        "400":
+          description: Dados inválidos, ID inválido ou pagamento cancelado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Pagamento cancelado não pode ser editado."]
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    delete:
+      tags: [Pagamentos]
+      summary: Cancela um pagamento (compatibilidade)
+      description: |
+        Mantido por compatibilidade com a versão antiga. **Não apaga** o registro:
+        apenas muda o status para `Cancelado`. Prefira `PATCH /api/pagamentos/{id}/cancelar`.
+      operationId: excluirPagamento
+      deprecated: true
+      responses:
+        "204":
+          description: Pagamento cancelado (sem corpo na resposta).
+        "400":
+          $ref: "#/components/responses/IdInvalido"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /api/pagamentos/{id}/cancelar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [Pagamentos]
+      summary: Cancela um pagamento (exclusão lógica)
+      description: |
+        O registro continua no banco com status `Cancelado` e deixa de contar nos
+        totais. Cancelar algo já cancelado não gera erro (operação idempotente).
+      operationId: cancelarPagamento
+      responses:
+        "200":
+          description: Pagamento cancelado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pagamento"
+        "400":
+          $ref: "#/components/responses/IdInvalido"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # ---------------------------------------------------------------------------
+  # JOGADORES
+  # ---------------------------------------------------------------------------
+  /api/jogadores:
+    get:
+      tags: [Jogadores]
+      summary: Lista jogadores (pesquisa, filtro e paginação)
+      operationId: listarJogadores
+      parameters:
+        - name: busca
+          in: query
+          description: Parte do nome. Com 3 ou mais dígitos, também procura no CPF.
+          schema:
+            type: string
+            example: silva
+        - $ref: "#/components/parameters/FiltroSituacao"
+        - $ref: "#/components/parameters/Pagina"
+        - $ref: "#/components/parameters/Limite"
+      responses:
+        "200":
+          description: Página de jogadores (ativos primeiro, depois por nome).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Paginacao"
+                  - type: object
+                    properties:
+                      itens:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Jogador"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+    post:
+      tags: [Jogadores]
+      summary: Cadastra um jogador
+      operationId: criarJogador
+      requestBody:
+        $ref: "#/components/requestBodies/JogadorEntrada"
+      responses:
+        "201":
+          description: Jogador criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Jogador"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "409":
+          description: CPF já cadastrado, ou mesmo nome e data de nascimento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["Já existe um jogador cadastrado com este CPF."]
+
+  /api/jogadores/opcoes:
+    get:
+      tags: [Jogadores]
+      summary: Lista enxuta de jogadores para selects
+      description: Sem paginação. Por padrão, só os jogadores **ativos**.
+      operationId: listarOpcoesJogadores
+      parameters:
+        - name: incluirInativos
+          in: query
+          description: Use `1` para incluir os inativos (filtro do histórico).
+          schema:
+            type: string
+            enum: ["1"]
+      responses:
+        "200":
+          description: Jogadores ordenados por nome.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JogadorOpcao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+
+  /api/jogadores/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Jogadores]
+      summary: Consulta um jogador
+      operationId: buscarJogador
+      responses:
+        "200":
+          description: Jogador encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Jogador"
+        "400":
+          $ref: "#/components/responses/IdInvalido"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Jogadores]
+      summary: Edita um jogador
+      operationId: atualizarJogador
+      requestBody:
+        $ref: "#/components/requestBodies/JogadorEntrada"
+      responses:
+        "200":
+          description: Jogador atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Jogador"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Duplicidade de CPF ou de nome + nascimento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /api/jogadores/{id}/inativar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [Jogadores]
+      summary: Inativa um jogador
+      description: Os pagamentos do jogador são preservados. Inativo não recebe novos lançamentos.
+      operationId: inativarJogador
+      responses:
+        "200":
+          description: Jogador inativado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Jogador"
+        "400":
+          $ref: "#/components/responses/IdInvalido"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # ---------------------------------------------------------------------------
+  # USUÁRIOS (somente admin)
+  # ---------------------------------------------------------------------------
+  /api/usuarios:
+    get:
+      tags: [Usuários]
+      summary: Lista usuários (pesquisa, filtro e paginação)
+      description: Somente **administrador**. A senha/hash nunca é devolvida.
+      operationId: listarUsuarios
+      parameters:
+        - name: busca
+          in: query
+          description: Parte do nome completo, do usuário ou do e-mail.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/FiltroSituacao"
+        - $ref: "#/components/parameters/Pagina"
+        - $ref: "#/components/parameters/Limite"
+      responses:
+        "200":
+          description: Página de usuários.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Paginacao"
+                  - type: object
+                    properties:
+                      itens:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Usuario"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+    post:
+      tags: [Usuários]
+      summary: Cadastra um usuário
+      operationId: criarUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioEntrada"
+            example:
+              nomeCompleto: Maria Souza
+              email: maria@exemplo.com
+              usuario: maria.souza
+              senha: senha1234
+              confirmarSenha: senha1234
+              perfil: comum
+              ativo: true
+      responses:
+        "201":
+          description: Usuário criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "409":
+          $ref: "#/components/responses/UsuarioDuplicado"
+
+  /api/usuarios/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Usuários]
+      summary: Consulta um usuário
+      operationId: buscarUsuario
+      responses:
+        "200":
+          description: Usuário encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+        "400":
+          $ref: "#/components/responses/IdInvalido"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Usuários]
+      summary: Edita um usuário
+      description: |
+        Senha em branco = mantém a senha atual. O administrador não pode inativar
+        a si mesmo nem tirar o próprio perfil de admin, e o sistema sempre mantém
+        ao menos um administrador ativo.
+      operationId: atualizarUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioEntrada"
+            example:
+              nomeCompleto: Maria Souza
+              email: maria@exemplo.com
+              usuario: maria.souza
+              senha: ""
+              confirmarSenha: ""
+              perfil: admin
+              ativo: true
+      responses:
+        "200":
+          description: Usuário atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+        "400":
+          $ref: "#/components/responses/DadosInvalidos"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          $ref: "#/components/responses/UsuarioDuplicado"
+
+  /api/usuarios/{id}/inativar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [Usuários]
+      summary: Inativa um usuário
+      description: O usuário inativado perde o acesso **na hora**, mesmo com sessão aberta.
+      operationId: inativarUsuario
+      responses:
+        "200":
+          description: Usuário inativado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+        "400":
+          description: ID inválido, tentativa de inativar a si mesmo ou o último admin ativo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+              example:
+                erros: ["O sistema precisa ter pelo menos um administrador ativo."]
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+# =============================================================================
+# COMPONENTES REUTILIZÁVEIS
+# =============================================================================
+components:
+  securitySchemes:
+    cookieSessao:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Cookie criado pelo `POST /api/login`.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Id numérico (inteiro positivo).
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+    Pagina:
+      name: pagina
+      in: query
+      description: Número da página (começa em 1).
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limite:
+      name: limite
+      in: query
+      description: Registros por página (máximo 100).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    FiltroSituacao:
+      name: status
+      in: query
+      description: Filtra pela situação do cadastro.
+      schema:
+        type: string
+        enum: [todos, ativo, inativo]
+        default: todos
+
+  requestBodies:
+    PagamentoEntrada:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PagamentoEntrada"
+          example:
+            jogador_id: 1
+            data_pagamento: "2026-11-06"
+            valor: "80,00"
+            status: Pago
+    JogadorEntrada:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/JogadorEntrada"
+          example:
+            nomeCompleto: João da Silva
+            cpf: 529.982.247-25
+            telefone: (11) 98765-4321
+            dataNascimento: "1995-04-20"
+            dataEntrada: "2026-01-10"
+            valorMensalidade: "80,00"
+            ativo: true
+            observacoes: Goleiro
+
+  responses:
+    NaoAutenticado:
+      description: Não está logado ou a sessão expirou.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+          example:
+            erros: ["Não autorizado. Faça login para continuar."]
+    SemPermissao:
+      description: Logado, mas o perfil não tem permissão (somente admin).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+          example:
+            erros: ["Você não tem permissão para realizar esta ação."]
+    IdInvalido:
+      description: O id da URL não é um inteiro positivo.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+          example:
+            erros: ["ID inválido."]
+    NaoEncontrado:
+      description: Registro não encontrado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+          example:
+            erros: ["Jogador não encontrado."]
+    DadosInvalidos:
+      description: Falha de validação (pode trazer várias mensagens).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+          example:
+            erros: ["Informe o nome completo (3 a 100 caracteres).", "Informe um e-mail válido."]
+    UsuarioDuplicado:
+      description: E-mail ou nome de usuário já cadastrado.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+          example:
+            erros: ["Este e-mail já está cadastrado para outro usuário.", "Este nome de usuário já está em uso."]
+
+  schemas:
+    Erro:
+      type: object
+      description: Formato único de erro da API.
+      required: [erros]
+      properties:
+        erros:
+          type: array
+          items:
+            type: string
+
+    ValorMonetario:
+      description: Aceita número (80.5) ou texto no padrão brasileiro ("80,50", "1.234,56").
+      oneOf:
+        - type: number
+          example: 80.5
+        - type: string
+          example: "80,50"
+
+    Situacao:
+      description: true/false ou os textos "ativo"/"inativo". Padrão no cadastro = ativo.
+      oneOf:
+        - type: boolean
+        - type: string
+          enum: [ativo, inativo]
+
+    Paginacao:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total de registros que atendem ao filtro.
+          example: 23
+        pagina:
+          type: integer
+          example: 1
+        limite:
+          type: integer
+          example: 10
+        totalPaginas:
+          type: integer
+          example: 3
+
+    # ---------- Autenticação ----------
+    LoginEntrada:
+      type: object
+      required: [usuario, senha]
+      properties:
+        usuario:
+          type: string
+          description: Nome de usuário ou e-mail.
+          example: admin
+        senha:
+          type: string
+          format: password
+          example: admin123
+
+    LoginResposta:
+      type: object
+      properties:
+        mensagem:
+          type: string
+          example: Login bem-sucedido.
+        usuario:
+          $ref: "#/components/schemas/Usuario"
+
+    # ---------- Usuários ----------
+    Perfil:
+      type: string
+      enum: [admin, comum]
+
+    Usuario:
+      type: object
+      description: Dados públicos do usuário. A senha e o hash NUNCA são devolvidos.
+      properties:
+        id:
+          type: integer
+          example: 1
+        nomeCompleto:
+          type: string
+          nullable: true
+          example: Administrador
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: admin@exemplo.com
+        usuario:
+          type: string
+          description: Nome de usuário usado no login.
+          example: admin
+        perfil:
+          $ref: "#/components/schemas/Perfil"
+        ativo:
+          type: boolean
+          example: true
+        criadoEm:
+          type: string
+          description: Data/hora em UTC (AAAA-MM-DD HH:MM:SS).
+          example: "2026-11-06 01:00:00"
+        atualizadoEm:
+          type: string
+          example: "2026-11-06 01:00:00"
+
+    UsuarioEntrada:
+      type: object
+      required: [nomeCompleto, email, usuario, perfil]
+      properties:
+        nomeCompleto:
+          type: string
+          minLength: 3
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 150
+          description: Único (sem diferenciar maiúsculas).
+        usuario:
+          type: string
+          pattern: "^[a-zA-Z0-9._-]{3,30}$"
+          description: Único. Letras sem acento, números, ponto, hífen ou sublinhado.
+        senha:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Obrigatória no cadastro; deve ter letras e números. Na edição, em branco = manter a atual.
+        confirmarSenha:
+          type: string
+          format: password
+          description: Precisa ser igual à senha.
+        perfil:
+          $ref: "#/components/schemas/Perfil"
+        ativo:
+          $ref: "#/components/schemas/Situacao"
+
+    # ---------- Jogadores ----------
+    Jogador:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nomeCompleto:
+          type: string
+          example: João da Silva
+        cpf:
+          type: string
+          nullable: true
+          description: Apenas dígitos.
+          example: "52998224725"
+        telefone:
+          type: string
+          nullable: true
+          description: Apenas dígitos (DDD + número).
+          example: "11987654321"
+        dataNascimento:
+          type: string
+          format: date
+          nullable: true
+          example: "1995-04-20"
+        dataEntrada:
+          type: string
+          format: date
+          example: "2026-01-10"
+        valorMensalidade:
+          type: number
+          example: 80
+        ativo:
+          type: boolean
+          example: true
+        observacoes:
+          type: string
+          nullable: true
+          example: Goleiro
+        criadoEm:
+          type: string
+          example: "2026-11-06 01:00:00"
+        atualizadoEm:
+          type: string
+          example: "2026-11-06 01:00:00"
+        totalPendente:
+          type: number
+          description: Soma dos pagamentos pendentes do jogador.
+          example: 160
+
+    JogadorEntrada:
+      type: object
+      required: [nomeCompleto, dataEntrada, valorMensalidade]
+      properties:
+        nomeCompleto:
+          type: string
+          minLength: 3
+          maxLength: 100
+        cpf:
+          type: string
+          description: Opcional; se informado, precisa ser válido e único. Aceita com ou sem máscara.
+        telefone:
+          type: string
+          description: Opcional; DDD + 8 ou 9 dígitos. Aceita com ou sem máscara.
+        dataNascimento:
+          type: string
+          format: date
+          description: Opcional; não pode ser no futuro.
+        dataEntrada:
+          type: string
+          format: date
+          description: Não pode ser anterior ao nascimento.
+        valorMensalidade:
+          $ref: "#/components/schemas/ValorMonetario"
+        ativo:
+          $ref: "#/components/schemas/Situacao"
+        observacoes:
+          type: string
+          maxLength: 500
+
+    JogadorOpcao:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nomeCompleto:
+          type: string
+          example: João da Silva
+        valorMensalidade:
+          type: number
+          example: 80
+        cpf:
+          type: string
+          nullable: true
+          example: "52998224725"
+        dataEntrada:
+          type: string
+          format: date
+          example: "2026-01-10"
+        ativo:
+          type: boolean
+          example: true
+
+    # ---------- Pagamentos ----------
+    StatusPagamento:
+      type: string
+      enum: [Pago, Pendente, Cancelado]
+
+    Pagamento:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        jogador_id:
+          type: integer
+          nullable: true
+          example: 1
+        jogador:
+          type: string
+          description: Nome atual do jogador (ou o nome gravado no pagamento, se não houver vínculo).
+          example: João da Silva
+        data_pagamento:
+          type: string
+          format: date
+          example: "2026-11-06"
+        valor:
+          type: number
+          example: 80
+        status:
+          $ref: "#/components/schemas/StatusPagamento"
+
+    PagamentoEntrada:
+      type: object
+      required: [jogador_id, data_pagamento, valor]
+      properties:
+        jogador_id:
+          type: integer
+          minimum: 1
+          description: Jogador cadastrado e ativo.
+        data_pagamento:
+          type: string
+          format: date
+        valor:
+          $ref: "#/components/schemas/ValorMonetario"
+        status:
+          type: string
+          enum: [Pago, Pendente]
+          default: Pago
+          description: O status Cancelado só é aplicado pela ação de cancelar.
+
+    ListaPagamentos:
+      type: object
+      properties:
+        pagamentos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Pagamento"
+        totalPago:
+          type: number
+          example: 240
+        totalPendente:
+          type: number
+          example: 80
+        total:
+          type: integer
+          description: Quantidade de registros do filtro (inclui cancelados).
+          example: 4
+        pagina:
+          type: integer
+          example: 1
+        limite:
+          type: integer
+          nullable: true
+          description: null quando a lista não é paginada.
+          example: 10
+        totalPaginas:
+          type: integer
+          example: 1
+
+    # ---------- Painel ----------
+    Dashboard:
+      type: object
+      properties:
+        mes:
+          type: string
+          example: "2026-11"
+        jogadoresAtivos:
+          type: integer
+          example: 18
+        valorPrevistoMes:
+          type: number
+          description: Soma das mensalidades dos jogadores ativos.
+          example: 1440
+        totalPagoMes:
+          type: number
+          example: 960
+        totalPendenteMes:
+          type: number
+          example: 160
+        quantidadePagosMes:
+          type: integer
+          example: 12
+        quantidadePendentesMes:
+          type: integer
+          example: 2
+        pendenteGeral:
+          type: number
+          description: Tudo que está pendente, de todos os meses.
+          example: 400
+        semLancamentoNoMes:
+          type: array
+          description: Jogadores ativos sem lançamento (pago ou pendente) no mês.
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              nomeCompleto:
+                type: string
+              valorMensalidade:
+                type: number
+        maioresPendencias:
+          type: array
+          description: Os 5 jogadores que mais devem.
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              nomeCompleto:
+                type: string
+              total:
+                type: number
+              quantidade:
+                type: integer
+        evolucao:
+          type: array
+          description: Total pago em cada um dos últimos 6 meses (meses sem pagamento = 0).
+          items:
+            type: object
+            properties:
+              mes:
+                type: string
+                example: "2026-06"
+              totalPago:
+                type: number
+                example: 880
+        ultimosPagamentos:
+          type: array
+          description: Os 5 lançamentos mais recentes (sem os cancelados).
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              jogador:
+                type: string
+              data_pagamento:
+                type: string
+                format: date
+              valor:
+                type: number
+              status:
+                $ref: "#/components/schemas/StatusPagamento"
