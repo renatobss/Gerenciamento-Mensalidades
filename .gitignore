@@ -1,3 +1,8 @@
 node_modules/
 data/
 .env
+
+# Artefatos gerados pelo Cypress
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/

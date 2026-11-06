@@ -5,13 +5,18 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test:servidor": "node scripts/servidor-teste.js",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "test:e2e": "node scripts/test-e2e.js"
   },
   "dependencies": {
     "express": "^4.21.2",
     "express-session": "^1.19.0"
   },
   "devDependencies": {
+    "cypress": "^16.2.1",
     "nodemon": "^3.1.9"
   }
 }
